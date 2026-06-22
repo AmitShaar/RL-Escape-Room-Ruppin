@@ -7,6 +7,7 @@ from rooms.room1_dp import Room1DP
 from rooms.room2_sarsa import Room2SARSA
 from rooms.room3_qlearning import Room3QLearning
 from rooms.room4_dqn import Room4DQN
+from rooms.room5_obstacles import Room5Obstacles
 
 app = FastAPI(title="Deep Sea RL")
 
@@ -30,6 +31,8 @@ def get_room(room_id: int):
             _rooms[room_id] = Room3QLearning()
         elif room_id == 4:
             _rooms[room_id] = Room4DQN()
+        elif room_id == 5:
+            _rooms[room_id] = Room5Obstacles()
         else:
             raise KeyError(f"Room {room_id} is not implemented yet")
     return _rooms[room_id]
@@ -84,6 +87,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
             elif msg_type == "get_replay":
                 replay = room.get_replay(data.get("episode", 0))
                 await websocket.send_json({"type": "replay_data", **replay})
+
+            elif msg_type == "test_generalization":
+                if hasattr(room, "test_generalization"):
+                    await room.test_generalization(websocket)
+                else:
+                    await websocket.send_json({"type": "error", "message": "generalization test not supported in this room"})
 
             else:
                 await websocket.send_json({"type": "error", "message": f"unknown message type: {msg_type}"})

@@ -42,8 +42,8 @@ export default function ContinuousWorld3D({
         <meshStandardMaterial color="#00ffaa" emissive="#00ffaa" emissiveIntensity={1.0} />
       </mesh>
 
-      {obstacles.map((o, i) => {
-        const [ox, oy, oz] = continuousToWorld(o.x, o.y, 0.5)
+      {obstacles.map(([ox0, oy0], i) => {
+        const [ox, oy, oz] = continuousToWorld(ox0, oy0, 0.5)
         return (
           <mesh key={i} position={[ox, oy, oz]}>
             <boxGeometry args={[0.5, 1, 0.5]} />
