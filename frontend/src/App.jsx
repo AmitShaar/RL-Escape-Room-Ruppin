@@ -3,8 +3,9 @@ import RoomSelector from './components/RoomSelector.jsx'
 import Room1_DP from './rooms/Room1_DP.jsx'
 import Room2_SARSA from './rooms/Room2_SARSA.jsx'
 import Room3_QLearning from './rooms/Room3_QLearning.jsx'
+import Room4_DQN from './rooms/Room4_DQN.jsx'
 
-const AVAILABLE_ROOMS = [1, 2, 3]
+const AVAILABLE_ROOMS = [1, 2, 3, 4]
 
 export default function App() {
   const [activeRoom, setActiveRoom] = useState(1)
@@ -16,6 +17,7 @@ export default function App() {
         {activeRoom === 1 && <Room1_DP />}
         {activeRoom === 2 && <Room2_SARSA />}
         {activeRoom === 3 && <Room3_QLearning />}
+        {activeRoom === 4 && <Room4_DQN />}
       </div>
     </div>
   )

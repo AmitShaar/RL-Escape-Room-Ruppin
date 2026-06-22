@@ -1,0 +1,60 @@
+import { useMemo } from 'react'
+import * as THREE from 'three'
+
+export const ROOM_SIZE = 10
+
+export function continuousToWorld(x, y, height = 0) {
+  return [x - ROOM_SIZE / 2, height, y - ROOM_SIZE / 2]
+}
+
+export default function ContinuousWorld3D({
+  velocity = [0, 0],
+  agentPos = [1, 1],
+  exitCenter = [9, 9],
+  exitRadius = 0.5,
+  obstacles = [],
+}) {
+  const [ex, ey, ez] = continuousToWorld(exitCenter[0], exitCenter[1], 0.05)
+
+  const arrowDir = useMemo(() => {
+    const [vx, vy] = velocity
+    const mag = Math.hypot(vx, vy)
+    if (mag < 1e-4) return null
+    return { dir: new THREE.Vector3(vx, 0, vy).normalize(), length: Math.min(2, mag * 0.3) }
+  }, [velocity])
+
+  const [ax, ay, az] = continuousToWorld(agentPos[0], agentPos[1], 0.4)
+
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+        <planeGeometry args={[ROOM_SIZE, ROOM_SIZE]} />
+        <meshStandardMaterial color="#061a30" />
+      </mesh>
+
+      <mesh position={[0, 1, 0]}>
+        <boxGeometry args={[ROOM_SIZE, 2, ROOM_SIZE]} />
+        <meshBasicMaterial color="#2a6a9a" wireframe transparent opacity={0.25} />
+      </mesh>
+
+      <mesh position={[ex, ey, ez]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[exitRadius, 0.06, 12, 32]} />
+        <meshStandardMaterial color="#00ffaa" emissive="#00ffaa" emissiveIntensity={1.0} />
+      </mesh>
+
+      {obstacles.map((o, i) => {
+        const [ox, oy, oz] = continuousToWorld(o.x, o.y, 0.5)
+        return (
+          <mesh key={i} position={[ox, oy, oz]}>
+            <boxGeometry args={[0.5, 1, 0.5]} />
+            <meshStandardMaterial color="#ff5522" emissive="#ff5522" emissiveIntensity={0.4} />
+          </mesh>
+        )
+      })}
+
+      {arrowDir && (
+        <arrowHelper args={[arrowDir.dir, new THREE.Vector3(ax, ay, az), arrowDir.length, 0xaee4ff, arrowDir.length * 0.3, arrowDir.length * 0.2]} />
+      )}
+    </group>
+  )
+}

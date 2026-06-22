@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from rooms.room1_dp import Room1DP
 from rooms.room2_sarsa import Room2SARSA
 from rooms.room3_qlearning import Room3QLearning
+from rooms.room4_dqn import Room4DQN
 
 app = FastAPI(title="Deep Sea RL")
 
@@ -27,6 +28,8 @@ def get_room(room_id: int):
             _rooms[room_id] = Room2SARSA()
         elif room_id == 3:
             _rooms[room_id] = Room3QLearning()
+        elif room_id == 4:
+            _rooms[room_id] = Room4DQN()
         else:
             raise KeyError(f"Room {room_id} is not implemented yet")
     return _rooms[room_id]
