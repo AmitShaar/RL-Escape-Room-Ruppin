@@ -4,6 +4,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from rooms.room1_dp import Room1DP
+from rooms.room2_sarsa import Room2SARSA
 
 app = FastAPI(title="Deep Sea RL")
 
@@ -21,6 +22,8 @@ def get_room(room_id: int):
     if room_id not in _rooms:
         if room_id == 1:
             _rooms[room_id] = Room1DP()
+        elif room_id == 2:
+            _rooms[room_id] = Room2SARSA()
         else:
             raise KeyError(f"Room {room_id} is not implemented yet")
     return _rooms[room_id]
@@ -40,6 +43,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
         await websocket.send_json({"type": "error", "message": str(exc)})
         await websocket.close()
         return
+
+    if hasattr(room, "map_info"):
+        await websocket.send_json({"type": "room_info", **room.map_info()})
 
     train_task = None
     try:
@@ -66,7 +72,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                     room.request_stop()
                     await train_task
                 room.reset()
-                await websocket.send_json({"type": "reset_complete"})
+                info = room.map_info() if hasattr(room, "map_info") else {}
+                await websocket.send_json({"type": "reset_complete", **info})
 
             elif msg_type == "get_replay":
                 replay = room.get_replay(data.get("episode", 0))

@@ -35,6 +35,7 @@ export default function GridWorld3D({
   vents = [],
   traps = [],
   beacons = [],
+  beaconsVisitedCount = 0,
   start = [0, 0],
   exit = [GRID_SIZE - 1, GRID_SIZE - 1],
 }) {
@@ -113,15 +114,17 @@ export default function GridWorld3D({
     }
   }
 
-  for (const [r, c] of beacons) {
+  beacons.forEach(([r, c], idx) => {
+    const visited = idx < beaconsVisitedCount
+    const color = visited ? '#5577aa' : '#aaff44'
     const [x, y, z] = gridToWorld(r, c, 0.5)
     cells.push(
       <mesh key={`beacon-${r}-${c}`} position={[x, y, z]}>
         <sphereGeometry args={[0.22, 16, 16]} />
-        <meshStandardMaterial color="#aaff44" emissive="#aaff44" emissiveIntensity={0.7} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={visited ? 0.2 : 0.7} />
       </mesh>
     )
-  }
+  })
 
   return <group>{cells}</group>
 }

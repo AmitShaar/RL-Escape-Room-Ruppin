@@ -123,11 +123,15 @@ class Room1DP(BaseRoom):
                 best_action = a_idx
         return best, best_action
 
+    def map_info(self):
+        return {"walls": list(self.walls), "vents": list(self.vents), "traps": list(self.traps)}
+
     async def train(self, params: dict, websocket):
         self.configure(params)
         self.v_table = np.zeros((ROWS, COLS))
         self.policy = np.full((ROWS, COLS), -1, dtype=int)
         self.stop_requested = False
+        await websocket.send_json({"type": "room_info", **self.map_info()})
 
         max_iterations = 1000
         iteration = 0
@@ -177,9 +181,7 @@ class Room1DP(BaseRoom):
             "best_reward": float(self.v_table[START[0], START[1]]),
             "policy": self.policy.tolist(),
             "v_table": self.v_table.tolist(),
-            "walls": list(self.walls),
-            "vents": list(self.vents),
-            "traps": list(self.traps),
+            **self.map_info(),
         })
 
     def _rollout_policy(self, max_steps=200):

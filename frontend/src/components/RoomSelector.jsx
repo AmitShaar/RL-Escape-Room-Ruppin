@@ -73,7 +73,7 @@ const styles = {
   },
   tabActive: {
     background: '#00ffaa22',
-    borderColor: '#00ffaa',
+    border: '1px solid #00ffaa',
     color: '#00ffaa',
   },
   tabDisabled: {
