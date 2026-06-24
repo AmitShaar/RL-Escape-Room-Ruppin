@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 
 const SPEEDS = [0.5, 1, 2, 5]
+const SUCCESS_THRESHOLD = 50
+const OUTCOME_PAUSE_MS = 1500
+
+function episodeSucceeded(trajectory) {
+  const last = trajectory[trajectory.length - 1]
+  return (last?.reward ?? 0) >= SUCCESS_THRESHOLD
+}
 
 export default function EpisodeReplay({ trajectory, onStepChange, title = "Replay חיזקי's best run" }) {
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
+  const [outcome, setOutcome] = useState(null)
   const intervalRef = useRef(null)
+  const outcomeTimeoutRef = useRef(null)
 
   const maxStep = Math.max(0, trajectory.length - 1)
 
@@ -14,23 +23,36 @@ export default function EpisodeReplay({ trajectory, onStepChange, title = "Repla
     onStepChange?.(step)
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Playback: advance one step per tick. On reaching the end, flash the
+  // outcome, pause, then loop back to the start and keep playing.
+  //
+  // This is done imperatively inside the tick (rather than as a second
+  // effect keyed on `step`/`outcome`) because an effect keyed on `outcome`
+  // re-runs — and cleans up — the instant `setOutcome` causes a re-render,
+  // cancelling its own just-scheduled timeout before it can fire.
   useEffect(() => {
     if (!playing) return
     intervalRef.current = setInterval(() => {
       setStep((s) => {
-        if (s >= maxStep) {
-          setPlaying(false)
-          return s
-        }
-        return s + 1
+        if (s < maxStep) return s + 1
+        setPlaying(false)
+        setOutcome(episodeSucceeded(trajectory) ? 'success' : 'fail')
+        outcomeTimeoutRef.current = setTimeout(() => {
+          setOutcome(null)
+          setStep(0)
+          setPlaying(true)
+        }, OUTCOME_PAUSE_MS)
+        return s
       })
     }, 400 / speed)
     return () => clearInterval(intervalRef.current)
-  }, [playing, speed, maxStep])
+  }, [playing, speed, maxStep, trajectory])
 
   useEffect(() => {
+    clearTimeout(outcomeTimeoutRef.current)
     setStep(0)
     setPlaying(false)
+    setOutcome(null)
   }, [trajectory])
 
   if (trajectory.length === 0) {
@@ -40,6 +62,11 @@ export default function EpisodeReplay({ trajectory, onStepChange, title = "Repla
   return (
     <div style={styles.wrap}>
       <h4 style={styles.title}>{title}</h4>
+      {outcome && (
+        <div style={{ ...styles.outcome, ...(outcome === 'success' ? styles.outcomeSuccess : styles.outcomeFail) }}>
+          {outcome === 'success' ? '🦴 חיזקי found the bone!' : '😢 חיזקי failed'}
+        </div>
+      )}
       <input
         type="range"
         min={0}
@@ -86,6 +113,24 @@ const styles = {
     fontSize: '12px',
     opacity: 0.6,
     padding: '10px',
+  },
+  outcome: {
+    margin: '0 0 8px 0',
+    padding: '8px 10px',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: 600,
+    textAlign: 'center',
+  },
+  outcomeSuccess: {
+    background: '#00ffaa22',
+    border: '1px solid #00ffaa',
+    color: '#00ffaa',
+  },
+  outcomeFail: {
+    background: '#ff444422',
+    border: '1px solid #ff4444',
+    color: '#ff8888',
   },
   controls: {
     display: 'flex',
