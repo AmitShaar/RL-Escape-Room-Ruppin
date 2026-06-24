@@ -10,6 +10,8 @@ import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
+import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
+import OutcomeFlash from '../components/OutcomeFlash.jsx'
 
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
@@ -20,6 +22,11 @@ const SCHEMA = [
   { key: 'max_steps', label: 'Max steps', min: 50, max: 1000, step: 10 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
   { key: 'K_beacons', label: 'Scent markers (K)', min: 1, max: 5, step: 1 },
+  { key: 'exit_reward', label: 'Exit reward (bone)', min: 10, max: 200, step: 10 },
+  { key: 'beacon_reward', label: 'Beacon reward', min: 1, max: 50, step: 1 },
+  { key: 'trap_reward', label: 'Trap penalty', min: -50, max: -1, step: 1 },
+  { key: 'step_penalty', label: 'Step penalty', min: -1, max: -0.01, step: 0.01 },
+  { key: 'step_delay_ms', label: 'Training animation speed (ms)', min: 0, max: 200, step: 10 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -31,6 +38,11 @@ const DEFAULT_PARAMS = {
   max_steps: 300,
   slip_prob: 0.15,
   K_beacons: 3,
+  exit_reward: 100,
+  beacon_reward: 20,
+  trap_reward: -15,
+  step_penalty: -0.1,
+  step_delay_ms: 0,
 }
 
 const ZERO_TABLE = Array.from({ length: 10 }, () => Array(10).fill(0))
@@ -49,8 +61,14 @@ export default function Room2_SARSA() {
   const [liveAgentPos, setLiveAgentPos] = useState(null)
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
+  const [liveEpisode, setLiveEpisode] = useState(null)
+  const [liveStep, setLiveStep] = useState(0)
+  const [liveTotalEpisodes, setLiveTotalEpisodes] = useState(params.episodes)
+  const [liveEpsilon, setLiveEpsilon] = useState(null)
+  const [flashOutcome, setFlashOutcome] = useState(null)
 
   const sendRef = useRef(() => {})
+  const flashTimeoutRef = useRef(null)
 
   const handleMessage = useCallback((msg) => {
     if (msg.type === 'room_info') {
@@ -58,14 +76,22 @@ export default function Room2_SARSA() {
     } else if (msg.type === 'step_update') {
       setLiveAgentPos(msg.agent_pos)
       if (msg.q_values) setQHeatmap(msg.q_values)
+      setLiveEpisode(msg.episode)
+      setLiveStep(msg.step)
+      if (msg.total_episodes != null) setLiveTotalEpisodes(msg.total_episodes)
+      if (msg.epsilon != null) setLiveEpsilon(msg.epsilon)
     } else if (msg.type === 'episode_end') {
       setEpisodeHistory((prev) => [...prev, { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon }])
+      setFlashOutcome(msg.outcome)
+      clearTimeout(flashTimeoutRef.current)
+      flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
       setQHeatmap(msg.q_values)
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
       setStatus('complete')
       setLiveAgentPos(null)
+      setLiveEpisode(null)
       setBestReward(msg.best_reward)
       setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
@@ -81,6 +107,8 @@ export default function Room2_SARSA() {
       setLiveAgentPos(null)
       setBestReward(null)
       setBestEpisode(null)
+      setLiveEpisode(null)
+      setFlashOutcome(null)
       setStatus('idle')
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
     } else if (msg.type === 'error') {
@@ -148,6 +176,15 @@ export default function Room2_SARSA() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
+          <OutcomeFlash outcome={flashOutcome} />
+          {status === 'training' && (
+            <EpisodeCounterOverlay
+              episode={liveEpisode}
+              totalEpisodes={liveTotalEpisodes}
+              step={liveStep}
+              epsilon={liveEpsilon}
+            />
+          )}
         </div>
         <div style={styles.heatmapWrap}>
           <QValueHeatmap
@@ -188,6 +225,7 @@ const styles = {
   sceneWrap: {
     flex: 1,
     minWidth: 0,
+    position: 'relative',
   },
   heatmapWrap: {
     width: '300px',

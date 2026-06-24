@@ -25,6 +25,9 @@ class Room1DP(BaseRoom):
         self.slip_prob = 0.1
         self.gamma = 0.95
         self.theta = 1e-4
+        self.exit_reward = 100.0
+        self.trap_reward_val = -20.0
+        self.step_penalty = -0.1
 
         self.walls = set()
         self.vents = set()
@@ -72,6 +75,9 @@ class Room1DP(BaseRoom):
         self.num_coral = params.get("num_coral", self.num_coral)
         self.num_vents = params.get("num_vents", self.num_vents)
         self.num_traps = params.get("num_traps", self.num_traps)
+        self.exit_reward = params.get("exit_reward", self.exit_reward)
+        self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
+        self.step_penalty = params.get("step_penalty", self.step_penalty)
 
     # ---------- transition model (known, used by DP) ----------
 
@@ -99,11 +105,11 @@ class Room1DP(BaseRoom):
         merged = {}
         for prob, nxt in raw_outcomes:
             if nxt in self.traps:
-                key = (START, -20.0, False)
+                key = (START, self.trap_reward_val, False)
             elif nxt == EXIT:
-                key = (EXIT, 100.0, True)
+                key = (EXIT, self.exit_reward, True)
             else:
-                key = (nxt, -0.1, False)
+                key = (nxt, self.step_penalty, False)
             merged[key] = merged.get(key, 0.0) + prob
 
         return [(prob, *key) for key, prob in merged.items()]
@@ -146,6 +152,8 @@ class Room1DP(BaseRoom):
 
             new_v = np.zeros((ROWS, COLS))
             new_policy = np.full((ROWS, COLS), -1, dtype=int)
+            display_v = self.v_table.copy()
+            display_policy = self.policy.copy()
             delta = 0.0
 
             for r in range(ROWS):
@@ -159,18 +167,23 @@ class Room1DP(BaseRoom):
                     new_policy[r, c] = best_action
                     delta = max(delta, abs(best_value - self.v_table[r, c]))
 
+                # Stream this row's freshly-computed values so the 3D grid can
+                # show a sweep highlight moving down the rows as VI processes them.
+                display_v[r, :] = new_v[r, :]
+                display_policy[r, :] = new_policy[r, :]
+                await websocket.send_json({
+                    "type": "vi_iteration",
+                    "iteration": iteration + 1,
+                    "current_row": r,
+                    "delta": delta,
+                    "v_table": display_v.tolist(),
+                    "policy": display_policy.tolist(),
+                })
+                await asyncio.sleep(0.03)
+
             self.v_table = new_v
             self.policy = new_policy
             iteration += 1
-
-            await websocket.send_json({
-                "type": "vi_iteration",
-                "iteration": iteration,
-                "delta": delta,
-                "v_table": self.v_table.tolist(),
-                "policy": self.policy.tolist(),
-            })
-            await asyncio.sleep(0)
 
         trajectory = self._rollout_policy()
         self.save_episode(0, trajectory)

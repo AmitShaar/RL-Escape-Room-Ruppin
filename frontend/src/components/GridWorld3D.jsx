@@ -1,10 +1,35 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
 
 export const GRID_SIZE = 10
 
 export function gridToWorld(row, col, y = 0) {
   return [col - (GRID_SIZE - 1) / 2, y, row - (GRID_SIZE - 1) / 2]
+}
+
+function RowSweepHighlight({ row }) {
+  const groupRef = useRef()
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return
+    const intensity = 0.5 + Math.sin(clock.elapsedTime * 10) * 0.5
+    for (const mesh of groupRef.current.children) {
+      mesh.material.emissiveIntensity = 0.4 + intensity * 0.8
+    }
+  })
+
+  const cells = []
+  for (let c = 0; c < GRID_SIZE; c++) {
+    const [x, y, z] = gridToWorld(row, c, 0.12)
+    cells.push(
+      <mesh key={c} position={[x, y, z]}>
+        <boxGeometry args={[0.95, 0.04, 0.95]} />
+        <meshStandardMaterial color="#ffffff" emissive="#7fd9ff" emissiveIntensity={0.6} transparent opacity={0.6} />
+      </mesh>
+    )
+  }
+  return <group ref={groupRef}>{cells}</group>
 }
 
 const LOW = [10, 42, 74] // #0a2a4a
@@ -40,6 +65,7 @@ export default function GridWorld3D({
   artifacts = [],
   collectedMask = 0,
   sharkPos = null,
+  currentRow = null,
   start = [0, 0],
   exit = [GRID_SIZE - 1, GRID_SIZE - 1],
 }) {
@@ -157,5 +183,10 @@ export default function GridWorld3D({
     )
   }
 
-  return <group>{cells}</group>
+  return (
+    <group>
+      {cells}
+      {currentRow != null && <RowSweepHighlight row={currentRow} />}
+    </group>
+  )
 }

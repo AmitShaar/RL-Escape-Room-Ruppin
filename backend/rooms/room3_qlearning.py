@@ -32,6 +32,11 @@ class Room3QLearning(BaseRoom):
         self.max_steps = 300
         self.m_fragments = 3
         self.shark_speed = 3
+        self.exit_reward = 100.0
+        self.fragment_reward = 15.0
+        self.shark_penalty = -25.0
+        self.step_penalty = -0.1
+        self.step_delay = 0.0
 
         self.artifacts = []
         self.patrol_cells = []
@@ -90,6 +95,11 @@ class Room3QLearning(BaseRoom):
         if new_m != self.m_fragments:
             self.m_fragments = new_m
             self.reset()
+        self.exit_reward = params.get("exit_reward", self.exit_reward)
+        self.fragment_reward = params.get("fragment_reward", self.fragment_reward)
+        self.shark_penalty = params.get("shark_penalty", self.shark_penalty)
+        self.step_penalty = params.get("step_penalty", self.step_penalty)
+        self.step_delay = params.get("step_delay_ms", 0) / 1000.0
 
     def map_info(self):
         return {"artifacts": self.artifacts, "shark_patrol": self.patrol_cells}
@@ -116,25 +126,25 @@ class Room3QLearning(BaseRoom):
         nxt = self._intended_next(row, col, action_idx)
 
         if nxt == self.shark_pos_at(step_count):
-            return (START[0], START[1], bitmask, portal_used), -25.0, False
+            return (START[0], START[1], bitmask, portal_used), self.shark_penalty, False
 
         if nxt == EXIT:
             full_mask = (1 << self.m_fragments) - 1
             if bitmask == full_mask:
-                return (EXIT[0], EXIT[1], bitmask, portal_used), 100.0, True
-            return (nxt[0], nxt[1], bitmask, portal_used), -0.1, False
+                return (EXIT[0], EXIT[1], bitmask, portal_used), self.exit_reward, True
+            return (nxt[0], nxt[1], bitmask, portal_used), self.step_penalty, False
 
         for i, pos in enumerate(self.artifacts):
             if nxt == pos and not (bitmask & (1 << i)):
-                return (nxt[0], nxt[1], bitmask | (1 << i), portal_used), 15.0, False
+                return (nxt[0], nxt[1], bitmask | (1 << i), portal_used), self.fragment_reward, False
 
         if not portal_used and portal_pos is not None and nxt == portal_pos:
             d = random.randint(3, 5)
             tr = min(ROWS - 1, nxt[0] + d)
             tc = min(COLS - 1, nxt[1] + d)
-            return (tr, tc, bitmask, True), -0.1, False
+            return (tr, tc, bitmask, True), self.step_penalty, False
 
-        return (nxt[0], nxt[1], bitmask, portal_used), -0.1, False
+        return (nxt[0], nxt[1], bitmask, portal_used), self.step_penalty, False
 
     def epsilon_greedy(self, table, row, col, bitmask, epsilon):
         if random.random() < epsilon:
@@ -143,7 +153,7 @@ class Room3QLearning(BaseRoom):
 
     # ---------- per-algorithm episode runners ----------
 
-    async def _run_episode_qlearning(self, epsilon, episode, websocket):
+    async def _run_episode_qlearning(self, epsilon, episode, websocket, total_episodes):
         row, col, bitmask = START[0], START[1], 0
         portal_pos = self.random_portal_position()
         portal_used = False
@@ -178,7 +188,11 @@ class Room3QLearning(BaseRoom):
                     "shark_pos": list(self.shark_pos_at(step)),
                     "q_values": np.max(self.q_table[:, :, bitmask, :], axis=-1).tolist(),
                     "done": done,
+                    "total_episodes": total_episodes,
+                    "epsilon": epsilon,
                 })
+                if self.step_delay > 0:
+                    await asyncio.sleep(self.step_delay)
             if done:
                 break
 
@@ -229,7 +243,9 @@ class Room3QLearning(BaseRoom):
             if self.stop_requested:
                 break
 
-            traj_q, reward_q, steps_q, portal_discovered, success_q = await self._run_episode_qlearning(epsilon, episode, websocket)
+            traj_q, reward_q, steps_q, portal_discovered, success_q = await self._run_episode_qlearning(
+                epsilon, episode, websocket, self.episodes
+            )
             if portal_discovered and portal_first_episode is None:
                 portal_first_episode = episode
             self.save_episode(episode, traj_q)
@@ -241,12 +257,12 @@ class Room3QLearning(BaseRoom):
             await websocket.send_json({
                 "type": "episode_end", "algo": "qlearning",
                 "episode": episode, "total_reward": reward_q, "steps": steps_q, "epsilon": epsilon,
-                "success": success_q,
+                "success": success_q, "outcome": "success" if success_q else "fail",
             })
             await websocket.send_json({
                 "type": "episode_end", "algo": "sarsa",
                 "episode": episode, "total_reward": reward_s, "steps": steps_s, "epsilon": epsilon,
-                "success": success_s,
+                "success": success_s, "outcome": "success" if success_s else "fail",
             })
             await asyncio.sleep(0)
 

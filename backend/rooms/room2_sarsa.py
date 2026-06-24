@@ -26,6 +26,11 @@ class Room2SARSA(BaseRoom):
         self.max_steps = 300
         self.slip_prob = 0.15
         self.k_beacons = 3
+        self.exit_reward = 100.0
+        self.beacon_reward = 20.0
+        self.trap_reward_val = -15.0
+        self.step_penalty = -0.1
+        self.step_delay = 0.0
 
         self.beacons = []
         self.slip_cells = set()
@@ -81,6 +86,11 @@ class Room2SARSA(BaseRoom):
         if new_k != self.k_beacons:
             self.k_beacons = new_k
             self.reset()
+        self.exit_reward = params.get("exit_reward", self.exit_reward)
+        self.beacon_reward = params.get("beacon_reward", self.beacon_reward)
+        self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
+        self.step_penalty = params.get("step_penalty", self.step_penalty)
+        self.step_delay = params.get("step_delay_ms", 0) / 1000.0
 
     # ---------- dynamics (model-free: sampled, not exposed to the agent) ----------
 
@@ -97,16 +107,16 @@ class Room2SARSA(BaseRoom):
         nxt = self._intended_next(row, col, action_idx)
 
         if nxt in self.traps:
-            return (START[0], START[1], visited), -15.0, False
+            return (START[0], START[1], visited), self.trap_reward_val, False
         if nxt == EXIT:
             if visited >= self.k_beacons:
-                return (EXIT[0], EXIT[1], visited), 100.0, True
-            return (nxt[0], nxt[1], visited), -0.1, False
+                return (EXIT[0], EXIT[1], visited), self.exit_reward, True
+            return (nxt[0], nxt[1], visited), self.step_penalty, False
         if visited < self.k_beacons and nxt == self.beacons[visited]:
-            return (nxt[0], nxt[1], visited + 1), 20.0, False
+            return (nxt[0], nxt[1], visited + 1), self.beacon_reward, False
         if nxt in self.beacons:
             return (nxt[0], nxt[1], visited), 0.0, False
-        return (nxt[0], nxt[1], visited), -0.1, False
+        return (nxt[0], nxt[1], visited), self.step_penalty, False
 
     def epsilon_greedy(self, row, col, visited, epsilon):
         if random.random() < epsilon:
@@ -165,7 +175,11 @@ class Room2SARSA(BaseRoom):
                         "reward": reward,
                         "q_values": np.max(self.q_table[:, :, visited, :], axis=-1).tolist(),
                         "done": done,
+                        "total_episodes": self.episodes,
+                        "epsilon": epsilon,
                     })
+                    if self.step_delay > 0:
+                        await asyncio.sleep(self.step_delay)
                 if done:
                     break
 
@@ -177,6 +191,7 @@ class Room2SARSA(BaseRoom):
                 "episode": episode,
                 "total_reward": total_reward,
                 "steps": step,
+                "outcome": "success" if done else "fail",
                 "epsilon": epsilon,
             })
             await asyncio.sleep(0)

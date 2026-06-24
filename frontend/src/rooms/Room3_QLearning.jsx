@@ -10,6 +10,8 @@ import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
+import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
+import OutcomeFlash from '../components/OutcomeFlash.jsx'
 
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
@@ -20,6 +22,11 @@ const SCHEMA = [
   { key: 'max_steps', label: 'Max steps', min: 50, max: 1000, step: 10 },
   { key: 'M_fragments', label: 'Bone fragments (M)', min: 1, max: 5, step: 1 },
   { key: 'shark_speed', label: 'Shark speed (steps/move)', min: 1, max: 10, step: 1 },
+  { key: 'exit_reward', label: 'Exit reward (bone)', min: 10, max: 200, step: 10 },
+  { key: 'fragment_reward', label: 'Bone fragment reward', min: 1, max: 50, step: 1 },
+  { key: 'shark_penalty', label: 'Shark penalty', min: -50, max: -1, step: 1 },
+  { key: 'step_penalty', label: 'Step penalty', min: -1, max: -0.01, step: 0.01 },
+  { key: 'step_delay_ms', label: 'Training animation speed (ms)', min: 0, max: 200, step: 10 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -31,6 +38,11 @@ const DEFAULT_PARAMS = {
   max_steps: 300,
   M_fragments: 3,
   shark_speed: 3,
+  exit_reward: 100,
+  fragment_reward: 15,
+  shark_penalty: -25,
+  step_penalty: -0.1,
+  step_delay_ms: 0,
 }
 
 const ZERO_TABLE = Array.from({ length: 10 }, () => Array(10).fill(0))
@@ -64,8 +76,14 @@ export default function Room3_QLearning() {
   const [portalFirstEpisode, setPortalFirstEpisode] = useState(null)
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
+  const [liveEpisode, setLiveEpisode] = useState(null)
+  const [liveStep, setLiveStep] = useState(0)
+  const [liveTotalEpisodes, setLiveTotalEpisodes] = useState(params.episodes)
+  const [liveEpsilon, setLiveEpsilon] = useState(null)
+  const [flashOutcome, setFlashOutcome] = useState(null)
 
   const sendRef = useRef(() => {})
+  const flashTimeoutRef = useRef(null)
 
   const handleMessage = useCallback((msg) => {
     if (msg.type === 'room_info') {
@@ -74,10 +92,20 @@ export default function Room3_QLearning() {
       setLiveAgentPos(msg.agent_pos)
       setLiveSharkPos(msg.shark_pos)
       if (msg.q_values) setQHeatmap(msg.q_values)
+      setLiveEpisode(msg.episode)
+      setLiveStep(msg.step)
+      if (msg.total_episodes != null) setLiveTotalEpisodes(msg.total_episodes)
+      if (msg.epsilon != null) setLiveEpsilon(msg.epsilon)
     } else if (msg.type === 'episode_end') {
       const entry = { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon, success: msg.success }
-      if (msg.algo === 'qlearning') setHistoryQ((prev) => [...prev, entry])
-      else setHistoryS((prev) => [...prev, entry])
+      if (msg.algo === 'qlearning') {
+        setHistoryQ((prev) => [...prev, entry])
+        setFlashOutcome(msg.outcome)
+        clearTimeout(flashTimeoutRef.current)
+        flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
+      } else {
+        setHistoryS((prev) => [...prev, entry])
+      }
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
       setQHeatmap(msg.q_values)
@@ -86,6 +114,7 @@ export default function Room3_QLearning() {
       setStatus('complete')
       setLiveAgentPos(null)
       setLiveSharkPos(null)
+      setLiveEpisode(null)
       setBestReward(msg.best_reward)
       setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
@@ -105,6 +134,8 @@ export default function Room3_QLearning() {
       setPortalFirstEpisode(null)
       setBestReward(null)
       setBestEpisode(null)
+      setLiveEpisode(null)
+      setFlashOutcome(null)
       setStatus('idle')
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
     } else if (msg.type === 'error') {
@@ -213,6 +244,15 @@ export default function Room3_QLearning() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
+          <OutcomeFlash outcome={flashOutcome} />
+          {status === 'training' && (
+            <EpisodeCounterOverlay
+              episode={liveEpisode}
+              totalEpisodes={liveTotalEpisodes}
+              step={liveStep}
+              epsilon={liveEpsilon}
+            />
+          )}
         </div>
         <div style={styles.heatmapWrap}>
           <QValueHeatmap table={qHeatmap} special={{}} label="max Q(s,a) Heatmap" />
@@ -263,6 +303,7 @@ const styles = {
   sceneWrap: {
     flex: 1,
     minWidth: 0,
+    position: 'relative',
   },
   heatmapWrap: {
     width: '300px',

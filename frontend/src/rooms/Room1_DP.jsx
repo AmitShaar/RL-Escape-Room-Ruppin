@@ -6,7 +6,7 @@ import RewardChart from '../components/RewardChart.jsx'
 import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
-import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
+import GridWorld3D, { gridToWorld, GRID_SIZE } from '../components/GridWorld3D.jsx'
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
@@ -18,6 +18,9 @@ const SCHEMA = [
   { key: 'num_coral', label: 'Coral reefs (walls)', min: 0, max: 20, step: 1 },
   { key: 'num_vents', label: 'Thermal vents (slip)', min: 0, max: 15, step: 1 },
   { key: 'num_traps', label: 'Electric traps', min: 0, max: 8, step: 1 },
+  { key: 'exit_reward', label: 'Exit reward (bone)', min: 10, max: 200, step: 10 },
+  { key: 'trap_reward', label: 'Trap penalty', min: -50, max: -1, step: 1 },
+  { key: 'step_penalty', label: 'Step penalty', min: -1, max: -0.01, step: 0.01 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -27,6 +30,9 @@ const DEFAULT_PARAMS = {
   num_coral: 8,
   num_vents: 6,
   num_traps: 3,
+  exit_reward: 100,
+  trap_reward: -20,
+  step_penalty: -0.1,
 }
 
 const ZERO_TABLE = Array.from({ length: 10 }, () => Array(10).fill(0))
@@ -43,6 +49,7 @@ export default function Room1_DP() {
   const [agentRC, setAgentRC] = useState([0, 0])
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
+  const [currentRow, setCurrentRow] = useState(null)
 
   const sendRef = useRef(() => {})
 
@@ -52,12 +59,18 @@ export default function Room1_DP() {
     } else if (msg.type === 'vi_iteration') {
       setVTable(msg.v_table)
       setPolicy(msg.policy)
-      setDeltaHistory((prev) => [...prev, { iteration: msg.iteration, delta: msg.delta }])
+      setCurrentRow(msg.current_row)
+      // vi_iteration now streams once per row (for the sweep effect); only
+      // record one convergence-chart point per full sweep (the last row).
+      if (msg.current_row === GRID_SIZE - 1) {
+        setDeltaHistory((prev) => [...prev, { iteration: msg.iteration, delta: msg.delta }])
+      }
     } else if (msg.type === 'training_complete') {
       setVTable(msg.v_table)
       setPolicy(msg.policy)
       setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps })
       setStatus('complete')
+      setCurrentRow(null)
       setBestReward(msg.best_reward)
       setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: 0 })
@@ -71,6 +84,7 @@ export default function Room1_DP() {
       setAgentRC([0, 0])
       setBestReward(null)
       setBestEpisode(null)
+      setCurrentRow(null)
       setStatus('idle')
       setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps })
     } else if (msg.type === 'error') {
@@ -140,6 +154,7 @@ export default function Room1_DP() {
               walls={special.walls}
               vents={special.vents}
               traps={special.traps}
+              currentRow={currentRow}
             />
             <DogModel position={dogPos} />
           </Scene3D>
