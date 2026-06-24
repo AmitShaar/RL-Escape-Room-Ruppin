@@ -1,6 +1,6 @@
-# Deep Sea RL
+# Hizki In Space RL
 
-A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a wireframe dog, who progresses through 5 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
+A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a space-suited dog, who progresses through 5 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
 
 ```
 backend/   FastAPI app, WebSocket protocol, one room module per algorithm

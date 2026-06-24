@@ -138,6 +138,17 @@ export default function Room2_SARSA() {
   }
   const onReset = () => send({ type: 'reset' })
 
+  // Room 2's exit cell only ends the episode once all beacons are collected
+  // in order, so checking position alone can't tell success from "just
+  // passing through" - the big reward only fires on genuine completion.
+  const checkSuccess = useCallback(
+    (traj) => {
+      const last = traj[traj.length - 1]
+      return (last?.reward ?? 0) >= params.exit_reward
+    },
+    [params.exit_reward]
+  )
+
   const onReplayStep = useCallback(
     (step) => {
       const point = trajectory[step]
@@ -160,7 +171,7 @@ export default function Room2_SARSA() {
         {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
         <RewardChart data={episodeHistory} xKey="episode" yKey="total_reward" title="Reward per episode" />
         <RewardChart data={episodeHistory} xKey="episode" yKey="epsilon" title="Epsilon decay" color="#ffaa00" />
-        <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
+        <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} checkSuccess={checkSuccess} />
       </aside>
 
       <main style={styles.main}>

@@ -9,7 +9,7 @@ from rooms.room3_qlearning import Room3QLearning
 from rooms.room4_dqn import Room4DQN
 from rooms.room5_obstacles import Room5Obstacles
 
-app = FastAPI(title="Deep Sea RL")
+app = FastAPI(title="Hizki In Space RL")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +40,7 @@ def get_room(room_id: int):
 
 @app.get("/")
 async def health():
-    return {"status": "ok", "service": "deep-sea-rl-backend"}
+    return {"status": "ok", "service": "hizki-in-space-rl-backend"}
 
 
 @app.websocket("/ws/{room_id}")

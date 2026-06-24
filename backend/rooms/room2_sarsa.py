@@ -90,7 +90,12 @@ class Room2SARSA(BaseRoom):
         self.beacon_reward = params.get("beacon_reward", self.beacon_reward)
         self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
-        self.step_delay = params.get("step_delay_ms", 0) / 1000.0
+        # Windows' default asyncio timer granularity (~15.6ms) makes sleeps
+        # below that essentially no-ops (measured ~0.3ms actual delay for a
+        # requested 10ms) - floor any non-zero delay so the slider always
+        # produces a visible effect once it's off its 0 ("fast") setting.
+        requested_delay_ms = params.get("step_delay_ms", 0)
+        self.step_delay = max(requested_delay_ms, 30) / 1000.0 if requested_delay_ms > 0 else 0.0
 
     # ---------- dynamics (model-free: sampled, not exposed to the agent) ----------
 

@@ -4,12 +4,17 @@ const SPEEDS = [0.5, 1, 2, 5]
 const SUCCESS_THRESHOLD = 50
 const OUTCOME_PAUSE_MS = 1500
 
-function episodeSucceeded(trajectory) {
+function defaultCheckSuccess(trajectory) {
   const last = trajectory[trajectory.length - 1]
   return (last?.reward ?? 0) >= SUCCESS_THRESHOLD
 }
 
-export default function EpisodeReplay({ trajectory, onStepChange, title = "Replay חיזקי's best run" }) {
+export default function EpisodeReplay({
+  trajectory,
+  onStepChange,
+  title = "Replay חיזקי's best run",
+  checkSuccess = defaultCheckSuccess,
+}) {
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
@@ -36,7 +41,7 @@ export default function EpisodeReplay({ trajectory, onStepChange, title = "Repla
       setStep((s) => {
         if (s < maxStep) return s + 1
         setPlaying(false)
-        setOutcome(episodeSucceeded(trajectory) ? 'success' : 'fail')
+        setOutcome(checkSuccess(trajectory) ? 'success' : 'fail')
         outcomeTimeoutRef.current = setTimeout(() => {
           setOutcome(null)
           setStep(0)
@@ -46,7 +51,7 @@ export default function EpisodeReplay({ trajectory, onStepChange, title = "Repla
       })
     }, 400 / speed)
     return () => clearInterval(intervalRef.current)
-  }, [playing, speed, maxStep, trajectory])
+  }, [playing, speed, maxStep, trajectory, checkSuccess])
 
   useEffect(() => {
     clearTimeout(outcomeTimeoutRef.current)

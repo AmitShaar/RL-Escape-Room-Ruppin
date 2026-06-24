@@ -166,6 +166,17 @@ export default function Room3_QLearning() {
   }
   const onReset = () => send({ type: 'reset' })
 
+  // Room 3's exit cell only ends the episode once all fragments are
+  // collected, so checking position alone can't tell success from "just
+  // passing through" - the big reward only fires on genuine completion.
+  const checkSuccess = useCallback(
+    (traj) => {
+      const last = traj[traj.length - 1]
+      return (last?.reward ?? 0) >= params.exit_reward
+    },
+    [params.exit_reward]
+  )
+
   const onReplayStep = useCallback(
     (step) => {
       const point = trajectory[step]
@@ -229,7 +240,7 @@ export default function Room3_QLearning() {
           ]}
         />
         {convergenceLabel && <div style={styles.insight}>{convergenceLabel}</div>}
-        <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
+        <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} checkSuccess={checkSuccess} />
       </aside>
 
       <main style={styles.main}>

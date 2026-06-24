@@ -32,6 +32,20 @@ function RowSweepHighlight({ row }) {
   return <group ref={groupRef}>{cells}</group>
 }
 
+function HoleSwirl({ row, col }) {
+  const ref = useRef()
+  useFrame(({ clock }) => {
+    if (ref.current) ref.current.rotation.z = clock.elapsedTime * 2
+  })
+  const [x, y, z] = gridToWorld(row, col, 0.15)
+  return (
+    <mesh ref={ref} position={[x, y, z]} rotation={[Math.PI / 2, 0, 0]}>
+      <torusGeometry args={[0.3, 0.05, 8, 24]} />
+      <meshStandardMaterial color="#4a0a6a" emissive="#7a00ff" emissiveIntensity={0.5} />
+    </mesh>
+  )
+}
+
 const LOW = [10, 42, 74] // #0a2a4a
 const HIGH = [255, 153, 0] // #ff9900
 
@@ -64,6 +78,9 @@ export default function GridWorld3D({
   beaconsVisitedCount = 0,
   artifacts = [],
   collectedMask = 0,
+  treats = [],
+  treatsCollectedMask = 0,
+  holes = [],
   sharkPos = null,
   currentRow = null,
   start = [0, 0],
@@ -72,6 +89,7 @@ export default function GridWorld3D({
   const wallSet = useMemo(() => toKeySet(walls), [walls])
   const ventSet = useMemo(() => toKeySet(vents), [vents])
   const trapSet = useMemo(() => toKeySet(traps), [traps])
+  const holeSet = useMemo(() => toKeySet(holes), [holes])
 
   const { min, max } = useMemo(() => {
     if (!vTable) return { min: 0, max: 1 }
@@ -97,6 +115,7 @@ export default function GridWorld3D({
       const isWall = wallSet.has(key)
       const isTrap = trapSet.has(key)
       const isVent = ventSet.has(key)
+      const isHole = holeSet.has(key)
 
       let color = '#0a2a4a'
       let height = 0.1
@@ -108,6 +127,8 @@ export default function GridWorld3D({
         height = 0.5
       } else if (isTrap) {
         color = '#4a0a0a'
+      } else if (isHole) {
+        color = '#150522'
       } else if (isExit) {
         color = '#3a3015'
         emissive = '#FFD700'
@@ -130,6 +151,9 @@ export default function GridWorld3D({
           <meshStandardMaterial color={color} emissive={emissive} emissiveIntensity={emissiveIntensity} />
         </mesh>
       )
+      if (isHole) {
+        cells.push(<HoleSwirl key={`${key}-swirl`} row={r} col={c} />)
+      }
 
       const actionIdx = policy ? policy[r][c] : -1
       if (actionIdx >= 0 && !isWall && !isExit) {
@@ -164,6 +188,18 @@ export default function GridWorld3D({
       <mesh key={`artifact-${r}-${c}`} position={[x, y, z]} rotation={[0, Math.PI / 4, 0]}>
         <octahedronGeometry args={[0.22, 0]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={collected ? 0.15 : 0.8} />
+      </mesh>
+    )
+  })
+
+  treats.forEach(([r, c], idx) => {
+    const collected = Boolean(treatsCollectedMask & (1 << idx))
+    if (collected) return
+    const [x, y, z] = gridToWorld(r, c, 0.45)
+    cells.push(
+      <mesh key={`treat-${r}-${c}`} position={[x, y, z]}>
+        <sphereGeometry args={[0.14, 12, 10]} />
+        <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.8} />
       </mesh>
     )
   })

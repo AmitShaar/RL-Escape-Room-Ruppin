@@ -99,7 +99,12 @@ class Room3QLearning(BaseRoom):
         self.fragment_reward = params.get("fragment_reward", self.fragment_reward)
         self.shark_penalty = params.get("shark_penalty", self.shark_penalty)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
-        self.step_delay = params.get("step_delay_ms", 0) / 1000.0
+        # See the matching comment in room2_sarsa.py: Windows' default
+        # asyncio timer granularity makes sub-~15ms sleeps essentially
+        # no-ops, so any non-zero delay is floored to a value confirmed to
+        # actually delay.
+        requested_delay_ms = params.get("step_delay_ms", 0)
+        self.step_delay = max(requested_delay_ms, 30) / 1000.0 if requested_delay_ms > 0 else 0.0
 
     def map_info(self):
         return {"artifacts": self.artifacts, "shark_patrol": self.patrol_cells}
