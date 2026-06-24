@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 const SPEEDS = [0.5, 1, 2, 5]
 
-export default function EpisodeReplay({ trajectory, onStepChange }) {
+export default function EpisodeReplay({ trajectory, onStepChange, title = "Replay חיזקי's best run" }) {
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
@@ -39,7 +39,7 @@ export default function EpisodeReplay({ trajectory, onStepChange }) {
 
   return (
     <div style={styles.wrap}>
-      <h4 style={styles.title}>Episode Replay</h4>
+      <h4 style={styles.title}>{title}</h4>
       <input
         type="range"
         min={0}

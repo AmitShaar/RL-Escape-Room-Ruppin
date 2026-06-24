@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import Bone from './Bone.jsx'
 
 export const GRID_SIZE = 10
 
@@ -82,9 +83,9 @@ export default function GridWorld3D({
       } else if (isTrap) {
         color = '#4a0a0a'
       } else if (isExit) {
-        color = '#00ffaa'
-        emissive = '#00ffaa'
-        emissiveIntensity = 0.8
+        color = '#3a3015'
+        emissive = '#FFD700'
+        emissiveIntensity = 0.3
       } else if (isStart) {
         color = '#1a4a6a'
       } else if (vTable) {
@@ -140,6 +141,11 @@ export default function GridWorld3D({
       </mesh>
     )
   })
+
+  {
+    const [bx, by, bz] = gridToWorld(exit[0], exit[1], 0.4)
+    cells.push(<Bone key="bone-exit" position={[bx, by, bz]} />)
+  }
 
   if (sharkPos) {
     const [sx, sy, sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.3)

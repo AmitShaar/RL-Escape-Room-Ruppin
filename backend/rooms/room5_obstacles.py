@@ -318,7 +318,10 @@ class Room5Obstacles(BaseRoom):
                 state, reward, done = self.physics_step(state, action, obstacles)
                 total_reward += reward
                 if done:
-                    success = reward >= 100.0
+                    # Reward shaping means the exit reward isn't exactly 100.0,
+                    # so check the actual terminal position instead.
+                    dist_to_exit = math.hypot(state[0] - EXIT_CENTER[0], state[1] - EXIT_CENTER[1])
+                    success = dist_to_exit <= EXIT_RADIUS
                     break
             runs.append({"success": success, "reward": total_reward, "steps": step})
 

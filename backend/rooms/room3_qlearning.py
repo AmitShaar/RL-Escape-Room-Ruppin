@@ -182,7 +182,7 @@ class Room3QLearning(BaseRoom):
             if done:
                 break
 
-        return trajectory, total_reward, step, portal_discovered
+        return trajectory, total_reward, step, portal_discovered, done
 
     async def _run_episode_sarsa(self, epsilon, episode):
         row, col, bitmask = START[0], START[1], 0
@@ -207,7 +207,7 @@ class Room3QLearning(BaseRoom):
             if done:
                 break
 
-        return total_reward, step
+        return total_reward, step, done
 
     # ---------- training orchestration ----------
 
@@ -229,22 +229,24 @@ class Room3QLearning(BaseRoom):
             if self.stop_requested:
                 break
 
-            traj_q, reward_q, steps_q, portal_discovered = await self._run_episode_qlearning(epsilon, episode, websocket)
+            traj_q, reward_q, steps_q, portal_discovered, success_q = await self._run_episode_qlearning(epsilon, episode, websocket)
             if portal_discovered and portal_first_episode is None:
                 portal_first_episode = episode
             self.save_episode(episode, traj_q)
             episode_rewards_q[episode] = reward_q
 
-            reward_s, steps_s = await self._run_episode_sarsa(epsilon, episode)
+            reward_s, steps_s, success_s = await self._run_episode_sarsa(epsilon, episode)
             epsilon = max(0.01, epsilon * self.epsilon_decay)
 
             await websocket.send_json({
                 "type": "episode_end", "algo": "qlearning",
                 "episode": episode, "total_reward": reward_q, "steps": steps_q, "epsilon": epsilon,
+                "success": success_q,
             })
             await websocket.send_json({
                 "type": "episode_end", "algo": "sarsa",
                 "episode": episode, "total_reward": reward_s, "steps": steps_s, "epsilon": epsilon,
+                "success": success_s,
             })
             await asyncio.sleep(0)
 

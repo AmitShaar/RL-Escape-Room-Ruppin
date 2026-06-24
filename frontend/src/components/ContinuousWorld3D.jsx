@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import Bone from './Bone.jsx'
 
 export const ROOM_SIZE = 10
 
@@ -11,10 +12,9 @@ export default function ContinuousWorld3D({
   velocity = [0, 0],
   agentPos = [1, 1],
   exitCenter = [9, 9],
-  exitRadius = 0.5,
   obstacles = [],
 }) {
-  const [ex, ey, ez] = continuousToWorld(exitCenter[0], exitCenter[1], 0.05)
+  const [ex, ey, ez] = continuousToWorld(exitCenter[0], exitCenter[1], 0.5)
 
   const arrowDir = useMemo(() => {
     const [vx, vy] = velocity
@@ -37,10 +37,8 @@ export default function ContinuousWorld3D({
         <meshBasicMaterial color="#2a6a9a" wireframe transparent opacity={0.25} />
       </mesh>
 
-      <mesh position={[ex, ey, ez]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[exitRadius, 0.06, 12, 32]} />
-        <meshStandardMaterial color="#00ffaa" emissive="#00ffaa" emissiveIntensity={1.0} />
-      </mesh>
+      <Bone position={[ex, ey, ez]} scale={1.4} pulse />
+      <pointLight position={[ex, ey + 0.5, ez]} color="#1D9E75" intensity={1.2} distance={4} />
 
       {obstacles.map(([ox0, oy0], i) => {
         const [ox, oy, oz] = continuousToWorld(ox0, oy0, 0.5)

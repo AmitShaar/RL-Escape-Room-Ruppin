@@ -1,6 +1,6 @@
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-export default function ComparisonChart({ data, series, xKey = 'episode', title }) {
+export default function ComparisonChart({ data, series, xKey = 'episode', title, portalEpisode }) {
   return (
     <div style={styles.wrap}>
       <h4 style={styles.title}>{title}</h4>
@@ -11,6 +11,14 @@ export default function ComparisonChart({ data, series, xKey = 'episode', title 
           <YAxis stroke="#5a8fb0" fontSize={11} />
           <Tooltip contentStyle={{ background: '#04162c', border: '1px solid #1a4a6a' }} />
           <Legend wrapperStyle={{ fontSize: '11px' }} />
+          {portalEpisode != null && (
+            <ReferenceLine
+              x={portalEpisode}
+              stroke="#aaff44"
+              strokeDasharray="4 2"
+              label={{ value: 'Portal found', fill: '#aaff44', fontSize: 10 }}
+            />
+          )}
           {series.map((s) => (
             <Line
               key={s.key}

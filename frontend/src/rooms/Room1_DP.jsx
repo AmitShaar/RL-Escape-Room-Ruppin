@@ -7,7 +7,9 @@ import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
-import SubmarineModel from '../components/SubmarineModel.jsx'
+import DogModel from '../components/DogModel.jsx'
+import BestResultPanel from '../components/BestResultPanel.jsx'
+import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
   { key: 'gamma', label: 'Gamma (discount)', min: 0.1, max: 0.99, step: 0.01 },
@@ -39,6 +41,8 @@ export default function Room1_DP() {
   const [special, setSpecial] = useState({ walls: [], vents: [], traps: [] })
   const [trajectory, setTrajectory] = useState([])
   const [agentRC, setAgentRC] = useState([0, 0])
+  const [bestReward, setBestReward] = useState(null)
+  const [bestEpisode, setBestEpisode] = useState(null)
 
   const sendRef = useRef(() => {})
 
@@ -54,6 +58,8 @@ export default function Room1_DP() {
       setPolicy(msg.policy)
       setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps })
       setStatus('complete')
+      setBestReward(msg.best_reward)
+      setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: 0 })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
@@ -63,6 +69,8 @@ export default function Room1_DP() {
       setDeltaHistory([])
       setTrajectory([])
       setAgentRC([0, 0])
+      setBestReward(null)
+      setBestEpisode(null)
       setStatus('idle')
       setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps })
     } else if (msg.type === 'error') {
@@ -100,7 +108,7 @@ export default function Room1_DP() {
     [trajectory]
   )
 
-  const submarinePos = useMemo(() => gridToWorld(agentRC[0], agentRC[1], 0.4), [agentRC])
+  const dogPos = useMemo(() => gridToWorld(agentRC[0], agentRC[1], 0.4), [agentRC])
 
   return (
     <div style={styles.layout}>
@@ -108,6 +116,17 @@ export default function Room1_DP() {
         <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
         <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
+        <TrainingStatusBanner status={status} />
+        {deltaHistory.length > 0 && (
+          <div style={styles.iterCounter}>
+            <span style={styles.iterCount}>{deltaHistory.length}</span>
+            <span style={styles.iterLabel}>{status === 'complete' ? ' iterations to converge' : ' iterations so far'}</span>
+            <div style={styles.iterDelta}>
+              Δ = {deltaHistory[deltaHistory.length - 1]?.delta?.toFixed(6) ?? '—'}
+            </div>
+          </div>
+        )}
+        {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
         <RewardChart data={deltaHistory} xKey="iteration" yKey="delta" title="Convergence (delta per iteration)" />
         <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
       </aside>
@@ -122,7 +141,7 @@ export default function Room1_DP() {
               vents={special.vents}
               traps={special.traps}
             />
-            <SubmarineModel position={submarinePos} />
+            <DogModel position={dogPos} />
           </Scene3D>
         </div>
         <div style={styles.heatmapWrap}>
@@ -151,6 +170,28 @@ const styles = {
   connStatus: {
     fontSize: '11px',
     opacity: 0.6,
+  },
+  iterCounter: {
+    background: '#06192e',
+    border: '1px solid #103252',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  iterCount: {
+    fontSize: '22px',
+    fontWeight: 600,
+    color: '#7dd3fc',
+  },
+  iterLabel: {
+    fontSize: '11px',
+    opacity: 0.7,
+  },
+  iterDelta: {
+    fontSize: '11px',
+    color: '#00ffaa',
+    marginTop: '2px',
   },
   main: {
     flex: 1,

@@ -7,7 +7,9 @@ import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
-import SubmarineModel from '../components/SubmarineModel.jsx'
+import DogModel from '../components/DogModel.jsx'
+import BestResultPanel from '../components/BestResultPanel.jsx'
+import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
@@ -17,7 +19,7 @@ const SCHEMA = [
   { key: 'episodes', label: 'Episodes', min: 50, max: 5000, step: 50 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 1000, step: 10 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
-  { key: 'K_beacons', label: 'Beacons (K)', min: 1, max: 5, step: 1 },
+  { key: 'K_beacons', label: 'Scent markers (K)', min: 1, max: 5, step: 1 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -45,6 +47,8 @@ export default function Room2_SARSA() {
   const [agentRC, setAgentRC] = useState([0, 0])
   const [visitedCount, setVisitedCount] = useState(0)
   const [liveAgentPos, setLiveAgentPos] = useState(null)
+  const [bestReward, setBestReward] = useState(null)
+  const [bestEpisode, setBestEpisode] = useState(null)
 
   const sendRef = useRef(() => {})
 
@@ -62,6 +66,8 @@ export default function Room2_SARSA() {
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
       setStatus('complete')
       setLiveAgentPos(null)
+      setBestReward(msg.best_reward)
+      setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
@@ -73,6 +79,8 @@ export default function Room2_SARSA() {
       setAgentRC([0, 0])
       setVisitedCount(0)
       setLiveAgentPos(null)
+      setBestReward(null)
+      setBestEpisode(null)
       setStatus('idle')
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
     } else if (msg.type === 'error') {
@@ -112,7 +120,7 @@ export default function Room2_SARSA() {
   )
 
   const displayRC = liveAgentPos || agentRC
-  const submarinePos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
+  const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
 
   return (
     <div style={styles.layout}>
@@ -120,6 +128,8 @@ export default function Room2_SARSA() {
         <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
         <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
+        <TrainingStatusBanner status={status} />
+        {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
         <RewardChart data={episodeHistory} xKey="episode" yKey="total_reward" title="Reward per episode" />
         <RewardChart data={episodeHistory} xKey="episode" yKey="epsilon" title="Epsilon decay" color="#ffaa00" />
         <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
@@ -136,7 +146,7 @@ export default function Room2_SARSA() {
               beacons={special.beacons}
               beaconsVisitedCount={visitedCount}
             />
-            <SubmarineModel position={submarinePos} />
+            <DogModel position={dogPos} />
           </Scene3D>
         </div>
         <div style={styles.heatmapWrap}>

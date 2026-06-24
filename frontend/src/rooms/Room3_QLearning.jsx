@@ -7,7 +7,9 @@ import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
-import SubmarineModel from '../components/SubmarineModel.jsx'
+import DogModel from '../components/DogModel.jsx'
+import BestResultPanel from '../components/BestResultPanel.jsx'
+import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
@@ -16,7 +18,7 @@ const SCHEMA = [
   { key: 'epsilon_decay', label: 'Epsilon decay', min: 0.9, max: 1.0, step: 0.001 },
   { key: 'episodes', label: 'Episodes', min: 50, max: 5000, step: 50 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 1000, step: 10 },
-  { key: 'M_fragments', label: 'Artifact fragments (M)', min: 1, max: 5, step: 1 },
+  { key: 'M_fragments', label: 'Bone fragments (M)', min: 1, max: 5, step: 1 },
   { key: 'shark_speed', label: 'Shark speed (steps/move)', min: 1, max: 10, step: 1 },
 ]
 
@@ -41,7 +43,7 @@ function sharkPosAtStep(patrol, shark_speed, step) {
 }
 
 function firstSuccessEpisode(history) {
-  const hit = history.find((e) => e.total_reward > 100)
+  const hit = history.find((e) => e.success)
   return hit ? hit.episode : null
 }
 
@@ -60,6 +62,8 @@ export default function Room3_QLearning() {
   const [liveAgentPos, setLiveAgentPos] = useState(null)
   const [liveSharkPos, setLiveSharkPos] = useState(null)
   const [portalFirstEpisode, setPortalFirstEpisode] = useState(null)
+  const [bestReward, setBestReward] = useState(null)
+  const [bestEpisode, setBestEpisode] = useState(null)
 
   const sendRef = useRef(() => {})
 
@@ -71,7 +75,7 @@ export default function Room3_QLearning() {
       setLiveSharkPos(msg.shark_pos)
       if (msg.q_values) setQHeatmap(msg.q_values)
     } else if (msg.type === 'episode_end') {
-      const entry = { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon }
+      const entry = { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon, success: msg.success }
       if (msg.algo === 'qlearning') setHistoryQ((prev) => [...prev, entry])
       else setHistoryS((prev) => [...prev, entry])
     } else if (msg.type === 'training_complete') {
@@ -82,6 +86,8 @@ export default function Room3_QLearning() {
       setStatus('complete')
       setLiveAgentPos(null)
       setLiveSharkPos(null)
+      setBestReward(msg.best_reward)
+      setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
@@ -97,6 +103,8 @@ export default function Room3_QLearning() {
       setLiveAgentPos(null)
       setLiveSharkPos(null)
       setPortalFirstEpisode(null)
+      setBestReward(null)
+      setBestEpisode(null)
       setStatus('idle')
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
     } else if (msg.type === 'error') {
@@ -161,7 +169,7 @@ export default function Room3_QLearning() {
   }, [status, historyQ, historyS])
 
   const displayRC = liveAgentPos || agentRC
-  const submarinePos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
+  const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
   const replaySharkPos = useMemo(
     () => sharkPosAtStep(special.shark_patrol, params.shark_speed, replayStep),
     [special.shark_patrol, params.shark_speed, replayStep]
@@ -174,6 +182,8 @@ export default function Room3_QLearning() {
         <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
         <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
+        <TrainingStatusBanner status={status} />
+        {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
         {portalFirstEpisode != null && (
           <div style={styles.badge}>Portal first used at episode {portalFirstEpisode}</div>
         )}
@@ -181,6 +191,7 @@ export default function Room3_QLearning() {
           data={comparisonData}
           xKey="episode"
           title="SARSA vs Q-Learning reward"
+          portalEpisode={portalFirstEpisode}
           series={[
             { key: 'qlearning', label: 'Q-Learning', color: '#00ffaa' },
             { key: 'sarsa', label: 'SARSA', color: '#ffaa00' },
@@ -200,7 +211,7 @@ export default function Room3_QLearning() {
               collectedMask={collectedMask}
               sharkPos={sharkPos}
             />
-            <SubmarineModel position={submarinePos} />
+            <DogModel position={dogPos} />
           </Scene3D>
         </div>
         <div style={styles.heatmapWrap}>

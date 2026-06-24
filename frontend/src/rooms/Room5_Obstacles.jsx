@@ -7,7 +7,9 @@ import LossChart from '../components/LossChart.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import ContinuousWorld3D, { continuousToWorld } from '../components/ContinuousWorld3D.jsx'
-import SubmarineModel from '../components/SubmarineModel.jsx'
+import DogModel from '../components/DogModel.jsx'
+import BestResultPanel from '../components/BestResultPanel.jsx'
+import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
   { key: 'learning_rate', label: 'Learning rate', min: 0.0001, max: 0.01, step: 0.0001 },
@@ -58,6 +60,8 @@ export default function Room5_Obstacles() {
   const [liveVelocity, setLiveVelocity] = useState([0, 0])
   const [genResult, setGenResult] = useState(null)
   const [genRunning, setGenRunning] = useState(false)
+  const [bestReward, setBestReward] = useState(null)
+  const [bestEpisode, setBestEpisode] = useState(null)
 
   const sendRef = useRef(() => {})
   const lossStepRef = useRef(0)
@@ -83,6 +87,8 @@ export default function Room5_Obstacles() {
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius, obstacles: msg.obstacles })
       setStatus('complete')
       setLiveAgentXY(null)
+      setBestReward(msg.best_reward)
+      setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
@@ -100,6 +106,8 @@ export default function Room5_Obstacles() {
       setLiveAgentXY(null)
       setLiveVelocity([0, 0])
       setGenResult(null)
+      setBestReward(null)
+      setBestEpisode(null)
       setStatus('idle')
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius, obstacles: msg.obstacles })
       setObstaclesNow(msg.obstacles || [])
@@ -156,7 +164,7 @@ export default function Room5_Obstacles() {
 
   const displayXY = liveAgentXY || agentXY
   const displayVelocity = liveAgentXY ? liveVelocity : velocity
-  const submarinePos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
+  const dogPos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
   const bufferPct = bufferFill.capacity ? Math.min(100, (bufferFill.size / bufferFill.capacity) * 100) : 0
 
   return (
@@ -165,6 +173,8 @@ export default function Room5_Obstacles() {
         <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
         <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
+        <TrainingStatusBanner status={status} />
+        {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
 
         <div style={styles.bufferWrap}>
           <div style={styles.bufferLabel}>
@@ -180,13 +190,25 @@ export default function Room5_Obstacles() {
           disabled={status !== 'complete' || genRunning}
           onClick={onTestGeneralization}
         >
-          {genRunning ? 'Testing on 10 new layouts...' : 'Test on new layout'}
+          {genRunning ? 'חיזקי is being tested...' : 'Test חיזקי on new layouts'}
         </button>
         {genResult && (
           <div style={styles.genResult}>
-            <div>Success rate: {(genResult.success_rate * 100).toFixed(0)}%</div>
-            <div>Avg reward: {genResult.avg_reward.toFixed(1)}</div>
-            <div>Avg steps: {genResult.avg_steps.toFixed(0)}</div>
+            <div style={styles.genResultTitle}>
+              חיזקי succeeded in {genResult.runs.filter((r) => r.success).length}/{genResult.runs.length} new environments
+            </div>
+            <div style={styles.dots}>
+              {genResult.runs.map((run, i) => (
+                <div
+                  key={i}
+                  title={`Layout ${i + 1}: ${run.success ? 'success' : 'failed'} (reward ${run.reward.toFixed(1)})`}
+                  style={{ ...styles.dot, background: run.success ? '#00ffaa' : '#ff4444' }}
+                />
+              ))}
+            </div>
+            <div style={styles.genResultStats}>
+              Avg reward: {genResult.avg_reward.toFixed(1)} · Avg steps: {genResult.avg_steps.toFixed(0)}
+            </div>
           </div>
         )}
 
@@ -205,7 +227,7 @@ export default function Room5_Obstacles() {
               exitRadius={special.exit_radius}
               obstacles={obstaclesNow}
             />
-            <SubmarineModel position={submarinePos} />
+            <DogModel position={dogPos} />
           </Scene3D>
         </div>
       </main>
@@ -273,6 +295,28 @@ const styles = {
     padding: '10px',
     fontSize: '12px',
     lineHeight: 1.6,
+  },
+  genResultTitle: {
+    marginBottom: '6px',
+    fontWeight: 600,
+    color: '#7fd9ff',
+  },
+  dots: {
+    display: 'flex',
+    gap: '4px',
+    flexWrap: 'wrap',
+    marginBottom: '8px',
+  },
+  dot: {
+    width: '18px',
+    height: '18px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.2)',
+  },
+  genResultStats: {
+    fontSize: '11px',
+    color: '#7fd9ff',
+    opacity: 0.8,
   },
   main: {
     flex: 1,

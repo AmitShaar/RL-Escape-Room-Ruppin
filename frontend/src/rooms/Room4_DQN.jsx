@@ -7,7 +7,9 @@ import LossChart from '../components/LossChart.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import ContinuousWorld3D, { continuousToWorld } from '../components/ContinuousWorld3D.jsx'
-import SubmarineModel from '../components/SubmarineModel.jsx'
+import DogModel from '../components/DogModel.jsx'
+import BestResultPanel from '../components/BestResultPanel.jsx'
+import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
   { key: 'learning_rate', label: 'Learning rate', min: 0.0001, max: 0.01, step: 0.0001 },
@@ -47,6 +49,8 @@ export default function Room4_DQN() {
   const [velocity, setVelocity] = useState([0, 0])
   const [liveAgentXY, setLiveAgentXY] = useState(null)
   const [liveVelocity, setLiveVelocity] = useState([0, 0])
+  const [bestReward, setBestReward] = useState(null)
+  const [bestEpisode, setBestEpisode] = useState(null)
 
   const sendRef = useRef(() => {})
   const lossStepRef = useRef(0)
@@ -70,6 +74,8 @@ export default function Room4_DQN() {
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius })
       setStatus('complete')
       setLiveAgentXY(null)
+      setBestReward(msg.best_reward)
+      setBestEpisode(msg.best_episode)
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
@@ -83,6 +89,8 @@ export default function Room4_DQN() {
       setVelocity([0, 0])
       setLiveAgentXY(null)
       setLiveVelocity([0, 0])
+      setBestReward(null)
+      setBestEpisode(null)
       setStatus('idle')
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius })
     } else if (msg.type === 'error') {
@@ -131,7 +139,7 @@ export default function Room4_DQN() {
 
   const displayXY = liveAgentXY || agentXY
   const displayVelocity = liveAgentXY ? liveVelocity : velocity
-  const submarinePos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
+  const dogPos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
   const bufferPct = bufferFill.capacity ? Math.min(100, (bufferFill.size / bufferFill.capacity) * 100) : 0
 
   return (
@@ -140,6 +148,8 @@ export default function Room4_DQN() {
         <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
         <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
+        <TrainingStatusBanner status={status} />
+        {status === 'complete' && <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />}
 
         <div style={styles.bufferWrap}>
           <div style={styles.bufferLabel}>
@@ -164,7 +174,7 @@ export default function Room4_DQN() {
               exitCenter={special.exit_center}
               exitRadius={special.exit_radius}
             />
-            <SubmarineModel position={submarinePos} />
+            <DogModel position={dogPos} />
           </Scene3D>
         </div>
       </main>

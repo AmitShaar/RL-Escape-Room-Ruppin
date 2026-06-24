@@ -1,10 +1,6 @@
-const ROOMS = [
-  { id: 1, name: 'Sonar Mapping', algo: 'Value Iteration' },
-  { id: 2, name: 'Ocean Currents', algo: 'SARSA' },
-  { id: 3, name: 'Treasure Hunt', algo: 'Q-Learning' },
-  { id: 4, name: 'Deep Trench', algo: 'DQN' },
-  { id: 5, name: 'The Storm', algo: 'DQN + Obstacles', bonus: true },
-]
+import { ROOM_META } from '../roomMeta.js'
+
+const ROOMS = Object.entries(ROOM_META).map(([id, meta]) => ({ id: Number(id), ...meta }))
 
 export default function RoomSelector({ activeRoom, onSelect, availableRooms }) {
   return (
