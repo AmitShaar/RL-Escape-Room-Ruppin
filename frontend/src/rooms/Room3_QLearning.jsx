@@ -13,19 +13,16 @@ import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
 
+// Trimmed to the 6 controls that matter day-to-day; fragment/shark counts
+// and reward values plus epsilon_decay stay fixed at sensible defaults
+// below instead of being exposed (still sent to the backend unchanged,
+// so training behavior is identical to before - just not user-editable).
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
   { key: 'gamma', label: 'Gamma (discount)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'epsilon', label: 'Epsilon (exploration)', min: 0.01, max: 1.0, step: 0.01 },
-  { key: 'epsilon_decay', label: 'Epsilon decay', min: 0.9, max: 1.0, step: 0.001 },
   { key: 'episodes', label: 'Episodes', min: 50, max: 5000, step: 50 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 1000, step: 10 },
-  { key: 'M_fragments', label: 'Bone fragments (M)', min: 1, max: 5, step: 1 },
-  { key: 'shark_speed', label: 'Shark speed (steps/move)', min: 1, max: 10, step: 1 },
-  { key: 'exit_reward', label: 'Exit reward (bone)', min: 10, max: 200, step: 10 },
-  { key: 'fragment_reward', label: 'Bone fragment reward', min: 1, max: 50, step: 1 },
-  { key: 'shark_penalty', label: 'Shark penalty', min: -50, max: -1, step: 1 },
-  { key: 'step_penalty', label: 'Step penalty', min: -1, max: -0.01, step: 0.01 },
   { key: 'step_delay_ms', label: 'Training animation speed (ms)', min: 0, max: 200, step: 10 },
 ]
 

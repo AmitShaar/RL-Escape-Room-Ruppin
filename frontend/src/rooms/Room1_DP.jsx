@@ -11,36 +11,28 @@ import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
+// Trimmed to the 7 controls that actually matter to the user (rewards,
+// slip, gamma); environment complexity (walls/vents/traps/treat & hole
+// counts, theta, trap penalty, step cost) stays fixed at the backend's
+// existing defaults instead of being exposed here.
 const SCHEMA = [
-  { key: 'gamma', label: 'Gamma (discount)', min: 0.1, max: 0.99, step: 0.01 },
-  { key: 'theta', label: 'Theta (convergence)', min: 0.0001, max: 0.01, step: 0.0001 },
+  { key: 'gamma', label: 'γ (gamma)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
-  { key: 'num_coral', label: '🪨 Asteroid walls', min: 0, max: 20, step: 1 },
-  { key: 'num_vents', label: '🌀 Wormholes (slip)', min: 0, max: 15, step: 1 },
-  { key: 'num_traps', label: '⚡ Electric traps', min: 0, max: 8, step: 1 },
-  { key: 'num_treats', label: '🦴 Space treats', min: 0, max: 15, step: 1 },
-  { key: 'num_holes', label: '🕳️ Black holes', min: 0, max: 10, step: 1 },
-  { key: 'exit_reward', label: '🦴 Bone reward', min: 10, max: 200, step: 10 },
   { key: 'treat_reward', label: '🦴 Treat reward', min: 1, max: 20, step: 1 },
-  { key: 'trap_reward', label: '⚡ Electric trap penalty', min: -50, max: -1, step: 1 },
   { key: 'hole_penalty', label: '🕳️ Black hole penalty', min: -30, max: -1, step: 1 },
-  { key: 'step_penalty', label: '🚀 Step fuel cost', min: -1, max: -0.01, step: 0.01 },
+  { key: 'bone_reward', label: '🦴 Bone reward (exit)', min: 10, max: 200, step: 10 },
+  { key: 'replay_episodes', label: 'Episodes (replay)', min: 1, max: 10, step: 1 },
+  { key: 'max_steps', label: 'Max steps', min: 50, max: 500, step: 50 },
 ]
 
 const DEFAULT_PARAMS = {
   gamma: 0.95,
-  theta: 0.0001,
   slip_prob: 0.1,
-  num_coral: 8,
-  num_vents: 6,
-  num_traps: 3,
-  num_treats: 5,
-  num_holes: 4,
-  exit_reward: 100,
   treat_reward: 5,
-  trap_reward: -20,
   hole_penalty: -10,
-  step_penalty: -0.1,
+  bone_reward: 100,
+  replay_episodes: 1,
+  max_steps: 200,
 }
 
 const ZERO_TABLE = Array.from({ length: 10 }, () => Array(10).fill(0))
@@ -112,7 +104,9 @@ export default function Room1_DP() {
   const onStart = () => {
     setDeltaHistory([])
     setStatus('training')
-    send({ type: 'start_training', params })
+    // The backend's field is still named exit_reward; bone_reward is just
+    // the UI-facing name for the same value.
+    send({ type: 'start_training', params: { ...params, exit_reward: params.bone_reward } })
   }
   const onPause = () => {
     setStatus('paused')

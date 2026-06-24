@@ -269,7 +269,7 @@ class Room1DP(BaseRoom):
             self.policy = new_policy
             iteration += 1
 
-        trajectory = self._rollout_policy()
+        trajectory = self._rollout_policy(max_steps=params.get("max_steps", 200))
         self.save_episode(0, trajectory)
 
         await websocket.send_json({
