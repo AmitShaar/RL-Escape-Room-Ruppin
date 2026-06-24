@@ -14,7 +14,7 @@ frontend/  React + Vite + Three.js UI, one page per room
 cd backend
 python -m venv venv
 ./venv/Scripts/python.exe -m pip install -r requirements.txt
-./venv/Scripts/python.exe -m uvicorn main:app --port 8000
+./venv/Scripts/python.exe main.py  # not `uvicorn main:app` - this picks up the longer websocket ping timeout needed for long DQN runs (see Room 4/5)
 
 # frontend
 cd frontend
@@ -82,7 +82,7 @@ Slip cells use the same stochastic-redirect mechanic as Room 1, but here the tra
 **Algorithm.** SARSA (on-policy TD control):
 ```
 a' ~ ε-greedy(Q, s')
-Q(s,a) ← Q(s,a) + α [ r + γ Q(s',a') − Q(s,a) ]
+Q(s,a) ← Q(s,a) + α [ r + γ Q(s',a') − Q(s,a) ] 
 ```
 The key on-policy property: the bootstrap target uses the action the agent *will actually take* next (including exploration), not the greedy action.
 

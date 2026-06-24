@@ -11,30 +11,30 @@ import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
+// Matches the backend's hardcoded ReplayBuffer size (Room4DQN.buffer_size),
+// since that slider is no longer exposed in the UI but the buffer-fill
+// display still needs a capacity to show before the first step_update.
+const DEFAULT_BUFFER_CAPACITY = 10000
+
+// Trimmed to the 6 controls that matter day-to-day; batch_size,
+// buffer_size, target_sync, and drag stay fixed at the backend's existing
+// defaults instead of being exposed here.
 const SCHEMA = [
-  { key: 'learning_rate', label: 'Learning rate', min: 0.0001, max: 0.01, step: 0.0001 },
-  { key: 'gamma', label: 'Gamma (discount)', min: 0.9, max: 0.999, step: 0.001 },
-  { key: 'epsilon_min', label: 'Epsilon min', min: 0.001, max: 0.1, step: 0.001 },
-  { key: 'epsilon_decay', label: 'Epsilon decay', min: 0.99, max: 0.9999, step: 0.0001 },
-  { key: 'batch_size', label: 'Batch size', min: 32, max: 256, step: 16 },
-  { key: 'buffer_size', label: 'Buffer size', min: 1000, max: 100000, step: 1000 },
-  { key: 'target_sync', label: 'Target sync (steps)', min: 10, max: 1000, step: 10 },
-  { key: 'episodes', label: 'Episodes', min: 50, max: 2000, step: 50 },
-  { key: 'max_steps', label: 'Max steps', min: 100, max: 2000, step: 100 },
-  { key: 'drag', label: 'Water drag', min: 0.5, max: 1.0, step: 0.01 },
+  { key: 'learning_rate', label: 'LR (learning rate)', min: 0.0001, max: 0.01, step: 0.0001 },
+  { key: 'gamma', label: 'Gamma', min: 0.8, max: 0.999, step: 0.01 },
+  { key: 'epsilon', label: 'Epsilon', min: 0.01, max: 1.0, step: 0.01 },
+  { key: 'epsilon_decay', label: 'Decay', min: 0.9, max: 0.999, step: 0.001 },
+  { key: 'episodes', label: 'Episodes', min: 50, max: 500, step: 50 },
+  { key: 'max_steps', label: 'Max Steps', min: 100, max: 500, step: 50 },
 ]
 
 const DEFAULT_PARAMS = {
   learning_rate: 0.001,
   gamma: 0.99,
-  epsilon_min: 0.01,
+  epsilon: 1.0,
   epsilon_decay: 0.995,
-  batch_size: 64,
-  buffer_size: 10000,
-  target_sync: 100,
-  episodes: 300,
-  max_steps: 500,
-  drag: 0.85,
+  episodes: 100,
+  max_steps: 200,
 }
 
 export default function Room4_DQN() {
@@ -43,7 +43,7 @@ export default function Room4_DQN() {
   const [special, setSpecial] = useState({ start: [1, 1], exit_center: [9, 9], exit_radius: 0.5 })
   const [episodeHistory, setEpisodeHistory] = useState([])
   const [lossHistory, setLossHistory] = useState([])
-  const [bufferFill, setBufferFill] = useState({ size: 0, capacity: params.buffer_size })
+  const [bufferFill, setBufferFill] = useState({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
   const [trajectory, setTrajectory] = useState([])
   const [agentXY, setAgentXY] = useState([1, 1])
   const [velocity, setVelocity] = useState([0, 0])
@@ -83,7 +83,7 @@ export default function Room4_DQN() {
       setEpisodeHistory([])
       setLossHistory([])
       lossStepRef.current = 0
-      setBufferFill({ size: 0, capacity: params.buffer_size })
+      setBufferFill({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
       setTrajectory([])
       setAgentXY(msg.start || [1, 1])
       setVelocity([0, 0])
@@ -96,7 +96,7 @@ export default function Room4_DQN() {
     } else if (msg.type === 'error') {
       console.error('Room4 error:', msg.message)
     }
-  }, [params.buffer_size])
+  }, [])
 
   const { send, connected } = useWebSocket(4, handleMessage)
   useEffect(() => {
