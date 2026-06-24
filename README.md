@@ -1,6 +1,6 @@
 # Deep Sea RL
 
-A reinforcement-learning escape room game. An autonomous submarine progresses through 5 rooms on the ocean floor, each one a different RL algorithm solving a different kind of environment. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
+A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a wireframe dog, who progresses through 5 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
 
 ```
 backend/   FastAPI app, WebSocket protocol, one room module per algorithm
@@ -26,7 +26,7 @@ Open the printed Vite URL (default `http://localhost:5173`). Each room has its o
 
 ---
 
-## Room 1 — Sonar Mapping (Dynamic Programming / Value Iteration)
+## Room 1 — The Mapped Yard (Dynamic Programming / Value Iteration)
 
 **State space.** `s = (row, col)` on a 10×10 grid — 100 states. The transition model (including thermal-vent slip probabilities and electric-trap resets) is fully known and given to the planner; this is the one room that is **not** model-free.
 
@@ -63,7 +63,7 @@ repeated until `max_s |V_{k+1}(s) − V_k(s)| < θ`.
 
 ---
 
-## Room 2 — Ocean Currents (SARSA)
+## Room 2 — The Foggy Park (SARSA)
 
 **State space.** `s = (row, col, beacons_visited)` where `beacons_visited ∈ {0,...,K}` is how many beacons have been collected *in order* (the bitmask is always a contiguous prefix since out-of-order visits don't advance it) — `100 × (K+1)` states.
 
@@ -103,7 +103,7 @@ The key on-policy property: the bootstrap target uses the action the agent *will
 
 ---
 
-## Room 3 — Treasure Hunt (Q-Learning, vs. SARSA comparison)
+## Room 3 — Treasure Sniff (Q-Learning, vs. SARSA comparison)
 
 **State space.** `s = (row, col, artifacts_bitmask)`, `artifacts_bitmask ∈ {0,...,2^M-1}` — fragments can be collected in **any** order, so the full bitmask (not just a count) is needed.
 
@@ -142,7 +142,7 @@ The bootstrap uses the **greedy** action at `s'` regardless of which action the 
 
 ---
 
-## Room 4 — Deep Trench (DQN, continuous control)
+## Room 4 — The Open Field (DQN, continuous control)
 
 **State space.** Continuous `s = (x, y, Vx, Vy)`, with `x, y` normalized to `[-1, 1]` and `Vx, Vy` scaled by a fixed constant for stable network inputs (see *Key insight*).
 
@@ -171,7 +171,7 @@ L(θ) = MSE( Q_θ(s,a),  r + γ (1-done) max_a' Q_θ⁻(s',a') )
 | γ | 0.99 | After the velocity/position rescale (see below), the optimal path is ~60-90 steps — γ=0.99 keeps the terminal reward's discounted value meaningful at that horizon (γ=0.95 would have discounted it away). |
 | ε_decay / ε_min | 0.995 / 0.01 | Reaches near-greedy by episode ~250-300, matching when the policy has typically converged. |
 | target_sync | 100 | Frequent enough to track the online network without the bootstrap target whipsawing every step. |
-| drag | 0.85 | Gives the submarine believable inertia without making fine control of the final approach to the exit too hard. |
+| drag | 0.85 | Gives חיזקי believable inertia without making fine control of the final approach to the bone too hard. |
 
 **Learning curve.**
 
@@ -200,7 +200,7 @@ where `shaping = 8.0 × (dist_before − dist_after)` is potential-based reward 
 
 **Algorithm.** Same DQN setup as Room 4, with the network's input layer sized to `4 + 2·K_visible`.
 
-**Generalization test.** After training, "Test on new layout" runs the trained **greedy** policy (ε=0) on 10 freshly-sampled obstacle layouts the policy never trained on, reporting success rate, average reward, and average steps — direct evidence of whether the policy generalized to the relative-position encoding rather than memorizing specific obstacle coordinates.
+**Generalization test.** After training, "Test חיזקי on new layouts" runs the trained **greedy** policy (ε=0) on 10 freshly-sampled obstacle layouts the policy never trained on, reporting success rate, average reward, and average steps — direct evidence of whether the policy generalized to the relative-position encoding rather than memorizing specific obstacle coordinates.
 
 **Hyperparameters found to work (reasonably) well.**
 
