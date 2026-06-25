@@ -5,7 +5,7 @@ import Room1_DP from './rooms/Room1_DP.jsx'
 import Room2_SARSA from './rooms/Room2_SARSA.jsx'
 import Room3_QLearning from './rooms/Room3_QLearning.jsx'
 import Room4_DQN from './rooms/Room4_DQN.jsx'
-import Room5_Obstacles from './rooms/Room5_Obstacles.jsx'
+import Room5_MC from './rooms/Room5_MC.jsx'
 
 const AVAILABLE_ROOMS = [1, 2, 3, 4, 5]
 
@@ -51,7 +51,7 @@ export default function App() {
           <Room4_DQN />
         </RoomSlot>
         <RoomSlot active={activeRoom === 5}>
-          <Room5_Obstacles />
+          <Room5_MC />
         </RoomSlot>
       </div>
     </div>

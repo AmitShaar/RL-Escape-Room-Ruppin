@@ -181,41 +181,36 @@ L(θ) = MSE( Q_θ(s,a),  r + γ (1-done) max_a' Q_θ⁻(s',a') )
 
 ---
 
-## Room 5 — The Storm (DQN + dynamic obstacles, bonus)
+## Room 5 — The Asteroid Field (Monte Carlo Control)
 
-**State space.** Continuous `s = (x, y, Vx, Vy, dx_1, dy_1, ..., dx_K, dy_K)` — base physics state plus the relative offset to each of the `K` *nearest* obstacles within `visibility_range` meters. Obstacles outside that range (or if there are fewer than `K` in total) are represented by a fixed "not visible" sentinel `(range+1, range+1)`, normalized like the rest of the state. State dimension is `4 + 2K`.
+**State space.** `(row, col, bones_bitmask)` on the same 10×10 grid as Rooms 2/3 — `bones_bitmask` tracks which of the `K` scattered bones have been collected so far, so the optimal policy correctly depends on what's left to pick up.
 
-**Action space.** Same 9 discrete thrust combinations as Room 4.
+**Action space.** 4 grid moves (UP/DOWN/LEFT/RIGHT).
 
 **Reward function.**
 ```
-R =  +100   entering the exit zone, terminal
-     -20    colliding with an obstacle, terminal
-     -10    hitting a wall
-     -0.05 + shaping   otherwise
+R =  +100   reaching the exit with every bone collected, terminal
+     +20    collecting a not-yet-collected bone
+     -0.1   otherwise (step cost)
 ```
-where `shaping = 8.0 × (dist_before − dist_after)` is potential-based reward shaping on distance-to-exit — added uniformly to every step (including terminal ones), which means it telescopes to (approximately) zero over a full episode and so doesn't change the optimal policy, while giving a much denser training signal step-to-step.
 
-**Physics.** Identical to Room 4, plus `N` obstacles that drift slowly (`obstacle_drift` m/s, bouncing off the room bounds) and are re-randomized every episode.
+**Dynamics.** Walls block movement; slippery "asteroid" cells have `slip_prob` chance per step of overriding the chosen action with a random one.
 
-**Algorithm.** Same DQN setup as Room 4, with the network's input layer sized to `4 + 2·K_visible`.
-
-**Generalization test.** After training, "Test חיזקי on new layouts" runs the trained **greedy** policy (ε=0) on 10 freshly-sampled obstacle layouts the policy never trained on, reporting success rate, average reward, and average steps — direct evidence of whether the policy generalized to the relative-position encoding rather than memorizing specific obstacle coordinates.
+**Algorithm — First-Visit Monte Carlo Control.** Unlike SARSA/Q-Learning, which apply a TD update after every single step, Monte Carlo plays out the **entire episode first**, then walks back through the recorded trajectory from the end, accumulating the discounted return `G ← reward + γ·G` and applying a first-visit incremental-mean update `Q(s,a) += α·(G − Q(s,a))` to each `(state, action)` pair the first time it's encountered in that backward pass. This means a single early exploratory wrong turn only gets "blamed" or "credited" once the actual full-episode outcome is known, rather than being adjusted online step-by-step.
 
 **Hyperparameters found to work (reasonably) well.**
 
 | Param | Value | Why |
 |---|---|---|
-| N_obstacles | 3-5 | Above ~5-7, the room becomes hard enough that vanilla DQN rarely converges within a practical training budget (see *Key insight*). |
-| visibility_range | 3.0 | Large enough to see an obstacle in time to react at this velocity scale, small enough to keep the partial-observability challenge meaningful. |
-| K_visible | 3 | Covers the typical local obstacle density at N=5 without blowing up the input dimension. |
-| shaping coefficient | 8.0 (hardcoded) | Without it the agent reliably converges to a degenerate "freeze near start" policy (see below); 8.0 was the smallest value that reliably broke that local optimum in testing. |
+| k_bones | 3 | Keeps the bitmask state space (`2^k`) small enough that 500 episodes is enough to visit `(state, action)` pairs many times each. |
+| slip_prob | 0.1 | Adds meaningful stochasticity without making the per-episode return too noisy for MC's full-return updates to converge cleanly. |
+| episodes | 500 | MC only updates once per episode (vs. every step for TD methods), so it needs more episodes than SARSA/Q-Learning to see comparable improvement. |
 
 **Learning curve.**
 
 ![Room 5 reward per episode](docs/screenshots/room5.png)
 
-**Key insight.** This room is a genuinely hard exploration problem for vanilla DQN: with sparse terminal rewards and risky obstacles, the agent's first stable policy is to **freeze in place** near the start (guaranteed -0.05/step forever beats risking a -20 collision with no clear path to +100). Adding potential-based reward shaping breaks this local optimum and gets the agent reliably moving toward the exit with positive average reward, but full, reliable success against dynamic obstacles under partial observability remains an open challenge within the default training budget — the generalization test typically shows partial success rather than near-100%. The mechanism (dynamic obstacles, nearest-K partial observation, generalization test) is fully functional end-to-end; this is an honest report of a hard bonus task's actual difficulty, not a bug.
+**Key insight.** Because Monte Carlo only learns at the end of each episode from the *actual* observed return rather than a bootstrapped estimate, its early reward curve is noisier than SARSA/Q-Learning's (no bias from an initially-wrong Q-table feeding into the update), but it still converges reliably once enough episodes have been played for the relevant `(state, action, bones_bitmask)` combinations to be visited.
 
 ---
 
@@ -223,6 +218,6 @@ where `shaping = 8.0 × (dist_before − dist_after)` is potential-based reward 
 
 Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-5).
 
-Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`, and (Room 5 only) `test_generalization`.
+Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`.
 
-Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `generalization_result` (Room 5 only), `error`.
+Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `error`.
