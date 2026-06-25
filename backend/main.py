@@ -9,6 +9,7 @@ from rooms.room3_qlearning import Room3QLearning
 from rooms.room4_dqn import Room4DQN
 from rooms.room5_bandit import Room5Bandit
 from rooms.room6_curriculum import Room6Curriculum
+from rooms.room7_reinforce import Room7Reinforce
 
 app = FastAPI(title="Hizki In Space RL")
 
@@ -36,6 +37,8 @@ def get_room(room_id: int):
             _rooms[room_id] = Room5Bandit()
         elif room_id == 6:
             _rooms[room_id] = Room6Curriculum()
+        elif room_id == 7:
+            _rooms[room_id] = Room7Reinforce()
         else:
             raise KeyError(f"Room {room_id} is not implemented yet")
     return _rooms[room_id]

@@ -5,4 +5,5 @@ export const ROOM_META = {
   4: { name: 'The Open Field', algo: 'DQN — Deep Q-Network' },
   5: { name: 'The Bone Machines', algo: 'Multi-Armed Bandit' },
   6: { name: 'The Growing Maze', algo: 'Curriculum Learning (Q-Learning)' },
+  7: { name: 'The Final Trial', algo: 'Policy Gradient (REINFORCE)', bonus: true },
 }

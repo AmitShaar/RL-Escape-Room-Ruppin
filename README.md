@@ -1,6 +1,6 @@
 # Hizki In Space RL
 
-A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a space-suited dog, who progresses through 6 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
+A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a space-suited dog, who progresses through 7 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
 
 ```
 backend/   FastAPI app, WebSocket protocol, one room module per algorithm
@@ -258,9 +258,48 @@ R =  +100   reaching the exit, terminal
 
 ---
 
+## Room 7 — The Final Trial (Policy Gradient / REINFORCE) ★ bonus
+
+Every other room is **value-based**: learn how good an action is (a V-table, a Q-table, or a network approximating one), then act greedily (or near-greedily) with respect to that estimate. This room is **policy-based** instead — there's no value table anywhere. A small neural network maps a state directly to **action probabilities**, and the whole policy is reshaped after every full episode based on how that episode's actual return turned out.
+
+**State space.** `(row, col)` on the same 10×10 grid style as Rooms 2/3, one-hot encoded (a 100-dim vector with a single 1) as the network's input — simple **function approximation** rather than a lookup table, even though the state space here is small enough that a table would've worked fine; the point is the mapping technique generalizes to state spaces too large to tabulate.
+
+**Action space.** 4 grid moves (UP/DOWN/LEFT/RIGHT), sampled from the policy network's output distribution every step (not argmax) — exploration here comes from the distribution's own randomness, not from an epsilon-greedy bolt-on.
+
+**Reward function.**
+```
+R =  +100   reaching the exit, terminal
+     -0.1   otherwise (step cost)
+```
+
+**Dynamics.** Walls block movement; slippery vent cells have `slip_prob` chance per step of overriding the chosen action with a random one — the same stochastic-environment stress-test Room 1's vents and Room 2's slip cells use.
+
+**Algorithm — REINFORCE (Monte Carlo Policy Gradient).** Play a full episode start to finish, *then* learn from it:
+```
+G_t = r_t + γ·r_{t+1} + γ²·r_{t+2} + ...      (discounted return from step t to the end)
+loss = -Σ_t log(π(a_t | s_t)) · G_t
+```
+Every action taken gets pushed toward higher probability if the episode's return from that point on was good, and lower probability if it wasn't — there's no bootstrapping off any other state's estimate, the entire signal comes from the actual observed outcome (the same "wait for the whole episode" structure as Monte Carlo control, just updating a policy network's weights via gradient ascent instead of a Q-table via averaging).
+
+**Hyperparameters found to work (reasonably) well.**
+
+| Param | Value | Why |
+|---|---|---|
+| Learning rate | 0.01 | High enough for visible convergence within a couple hundred episodes on this small a network/grid; vanilla REINFORCE is notoriously high-variance, so too low a rate makes progress hard to see in a demo-length run. |
+| episodes | 200 (default) | Enough for the policy to sharpen from uniform-random to consistently solving the maze; the slider goes up to 2000 for a more thorough run. |
+| return normalization | always on (not exposed) | Subtracting the episode's mean return and dividing by its std before the update is the simplest variance-reducing baseline - without it, REINFORCE's raw-magnitude returns make training visibly noisier and slower to converge. |
+
+**Learning curve.**
+
+![Room 7 reward per episode and policy confidence heatmap](docs/screenshots/room7.png)
+
+**Key insight.** Watch the sidebar's live "action probabilities" bars during training: they start pinned near 25%/25%/25%/25% (uniform — the network genuinely doesn't know anything yet) and visibly sharpen toward one dominant action as training progresses. The **Policy Confidence Heatmap** shows this same idea spatially across the whole grid at once — color here isn't a learned *value* like every other room's heatmap, it's `(most-likely action's probability − 0.25) / 0.75`, i.e. how far the policy has moved from "totally unsure" toward "fully decided" at each cell.
+
+---
+
 ## WebSocket protocol summary
 
-Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-6).
+Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-7).
 
 Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`, `single_pull` (Room 5 only - `{ type: "single_pull", machine: 0|1|2, params: {...} }`).
 
