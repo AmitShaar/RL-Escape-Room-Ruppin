@@ -119,7 +119,7 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
         <span style={styles.gradientLabel}>High value</span>
       </div>
       <div style={styles.gradientCaption}>
-        Plain cells: background shade = this table's own learned value here, low → high (not a fixed color - it's relative to this run's min/max).
+        Darker cells have a lower value, brighter orange cells have a higher value.
       </div>
       {presentKinds.length > 0 && (
         <div style={styles.legend}>
