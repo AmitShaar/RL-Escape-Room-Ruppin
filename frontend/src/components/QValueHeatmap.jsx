@@ -113,6 +113,14 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
           {hover.kind !== 'normal' ? ` [${LEGEND_LABELS[hover.kind] ?? hover.kind}]` : ''}
         </div>
       )}
+      <div style={styles.gradientLegend}>
+        <span style={styles.gradientLabel}>Low value</span>
+        <div style={styles.gradientBar} />
+        <span style={styles.gradientLabel}>High value</span>
+      </div>
+      <div style={styles.gradientCaption}>
+        Plain cells: background shade = this table's own learned value here, low → high (not a fixed color - it's relative to this run's min/max).
+      </div>
       {presentKinds.length > 0 && (
         <div style={styles.legend}>
           {presentKinds.map((kind) => (
@@ -156,6 +164,30 @@ const styles = {
     fontSize: '11px',
     fontFamily: 'monospace',
     color: '#d7ecff',
+  },
+  gradientLegend: {
+    marginTop: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  gradientLabel: {
+    fontSize: '10px',
+    color: '#7fd9ff',
+    whiteSpace: 'nowrap',
+  },
+  gradientBar: {
+    flex: 1,
+    height: '10px',
+    borderRadius: '5px',
+    background: `linear-gradient(to right, rgb(${LOW.join(',')}), rgb(${HIGH.join(',')}))`,
+  },
+  gradientCaption: {
+    marginTop: '4px',
+    fontSize: '10px',
+    color: '#7fd9ff',
+    opacity: 0.75,
+    lineHeight: 1.4,
   },
   legend: {
     marginTop: '8px',
