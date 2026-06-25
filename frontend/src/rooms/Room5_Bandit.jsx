@@ -1,57 +1,66 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 import HyperparamPanel from '../components/HyperparamPanel.jsx'
-import TrainingControls from '../components/TrainingControls.jsx'
 import RewardChart from '../components/RewardChart.jsx'
-import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
 const SCHEMA = [
-  { key: 'epsilon', label: 'Epsilon (exploration)', min: 0.01, max: 1.0, step: 0.01 },
+  { key: 'epsilon', label: 'Epsilon (autoplay exploration only)', min: 0.01, max: 1.0, step: 0.01 },
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
-  { key: 'n_pulls', label: 'Number of pulls', min: 50, max: 1000, step: 50 },
-  { key: 'step_delay_ms', label: '👁️ Speed (ms per pull)', min: 0, max: 500, step: 10 },
 ]
 
-const DEFAULT_PARAMS = {
-  epsilon: 0.2,
-  alpha: 0.1,
-  n_pulls: 200,
-  step_delay_ms: 0,
-}
+const DEFAULT_PARAMS = { epsilon: 0.2, alpha: 0.1 }
 
-const MACHINE_COLORS = ['#ff5566', '#4499ff', '#44dd88']
+const MAX_PULLS = 200
 const N_MACHINES = 3
+const MACHINE_COLORS = ['#ff5566', '#4499ff', '#44dd88']
+const SPIN_MS = 500
+const AUTOPLAY_INTERVAL_MS = 300
 
 function emptyArray(n, fill) {
   return Array.from({ length: n }, () => fill)
 }
 
-function SlotMachine({ index, color, qValue, pullCount, lastResult, justPulled, trueProb, revealed, isBest }) {
+function SlotMachine({ index, color, qValue, pullCount, lastResult, spinning, isBest, trueProb, revealed, disabled, onPull }) {
   const barPct = Math.max(0, Math.min(100, qValue * 100))
+  let display = '❔'
+  if (spinning) display = '⭐⭐⭐'
+  else if (lastResult != null) display = lastResult > 0 ? '🦴' : '❌'
+
   return (
     <div
       style={{
         ...styles.machine,
-        borderColor: justPulled ? color : '#1a4a6a',
-        boxShadow: justPulled ? `0 0 16px ${color}88` : 'none',
+        borderColor: isBest ? color : '#1a4a6a',
+        boxShadow: isBest ? `0 0 18px ${color}99` : 'none',
         ...(isBest ? { background: `${color}14` } : {}),
       }}
     >
       <div style={{ ...styles.machineTitle, color }}>Machine {index + 1}</div>
-      <div key={`icon-${pullCount}`} style={styles.machineIcon} className="bandit-spin">
-        {lastResult == null ? '❔' : lastResult > 0 ? '🦴' : '❌'}
+
+      <div style={styles.displayWindow}>
+        <div key={`icon-${pullCount}-${spinning}`} style={styles.machineIcon} className={spinning ? 'bandit-spinning' : 'bandit-spin'}>
+          {display}
+        </div>
       </div>
+
+      <button
+        style={{ ...styles.pullButton, borderColor: color, color, opacity: disabled ? 0.4 : 1 }}
+        disabled={disabled}
+        onClick={onPull}
+      >
+        <div className={spinning ? 'bandit-lever-pulled' : ''} style={{ ...styles.leverKnob, background: color }} />
+        <span style={styles.pullLabel}>🎰 PULL</span>
+      </button>
+
       <div style={styles.pullCount}>Pulled: {pullCount} times</div>
-      <div style={styles.barLabel}>
-        Q(a) = {qValue.toFixed(3)}
-      </div>
+      <div style={styles.barLabel}>Q(a) = {qValue.toFixed(3)}</div>
       <div style={styles.barTrack}>
         <div style={{ ...styles.barFill, width: `${barPct}%`, background: color }} />
       </div>
       {revealed && (
-        <div style={styles.revealRow}>
-          True prob: <strong>{trueProb.toFixed(2)}</strong> {isBest ? '✓' : ''}
+        <div key={`reveal-${index}`} style={styles.revealRow} className="bandit-spin">
+          True prob: <strong>{trueProb.toFixed(2)}</strong>
         </div>
       )}
     </div>
@@ -60,122 +69,179 @@ function SlotMachine({ index, color, qValue, pullCount, lastResult, justPulled, 
 
 export default function Room5_Bandit() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
-  const [status, setStatus] = useState('idle')
-  const [nPulls, setNPulls] = useState(DEFAULT_PARAMS.n_pulls)
   const [qValues, setQValues] = useState(emptyArray(N_MACHINES, 0))
   const [pullCounts, setPullCounts] = useState(emptyArray(N_MACHINES, 0))
   const [lastResults, setLastResults] = useState(emptyArray(N_MACHINES, null))
-  const [lastPulledMachine, setLastPulledMachine] = useState(null)
+  const [spinningMachine, setSpinningMachine] = useState(null)
+  const [pulling, setPulling] = useState(false)
+  const [totalPulls, setTotalPulls] = useState(0)
   const [totalReward, setTotalReward] = useState(0)
-  const [livePull, setLivePull] = useState(0)
   const [pullHistory, setPullHistory] = useState([])
   const [trueProbs, setTrueProbs] = useState(null)
   const [bestMachine, setBestMachine] = useState(null)
+  const [revealed, setRevealed] = useState(false)
+  const [revealBanner, setRevealBanner] = useState(false)
+  const [autoplay, setAutoplay] = useState(false)
 
-  const sendRef = useRef(() => {})
+  const spinStateRef = useRef({ timerDone: false, msg: null })
+  const doAutoTickRef = useRef(() => {})
+  const revealBannerTimeoutRef = useRef(null)
 
-  const handleMessage = useCallback((msg) => {
-    if (msg.type === 'room_info') {
-      setNPulls(msg.n_pulls ?? DEFAULT_PARAMS.n_pulls)
-    } else if (msg.type === 'pull_result') {
-      setQValues(msg.q_values)
-      setPullCounts(msg.pull_counts)
-      setLastPulledMachine(msg.machine)
-      setLastResults((prev) => prev.map((v, i) => (i === msg.machine ? msg.reward : v)))
-      setTotalReward(msg.total_reward)
-      setLivePull(msg.pull)
-      setPullHistory((prev) => [
-        ...prev,
-        {
-          pull: msg.pull,
-          total_reward: msg.total_reward,
-          q0: msg.q_values[0],
-          q1: msg.q_values[1],
-          q2: msg.q_values[2],
-        },
-      ])
-    } else if (msg.type === 'training_complete') {
-      setQValues(msg.q_values)
-      setPullCounts(msg.pull_counts)
-      setTotalReward(msg.total_reward)
+  const applyPullResult = useCallback((msg) => {
+    setQValues(msg.q_values)
+    setPullCounts(msg.pull_counts)
+    setTotalPulls(msg.total_pulls)
+    setTotalReward(msg.total_reward)
+    setLastResults((prev) => prev.map((v, i) => (i === msg.machine ? msg.reward : v)))
+    setPullHistory((prev) => [
+      ...prev,
+      { pull: msg.total_pulls, total_reward: msg.total_reward, q0: msg.q_values[0], q1: msg.q_values[1], q2: msg.q_values[2] },
+    ])
+    setSpinningMachine(null)
+    setPulling(false)
+    if (msg.done) {
       setTrueProbs(msg.true_probs)
       setBestMachine(msg.best_machine)
-      setStatus('complete')
-    } else if (msg.type === 'reset_complete') {
-      setQValues(emptyArray(N_MACHINES, 0))
-      setPullCounts(emptyArray(N_MACHINES, 0))
-      setLastResults(emptyArray(N_MACHINES, null))
-      setLastPulledMachine(null)
-      setTotalReward(0)
-      setLivePull(0)
-      setPullHistory([])
-      setTrueProbs(null)
-      setBestMachine(null)
-      setStatus('idle')
-      setNPulls(msg.n_pulls ?? DEFAULT_PARAMS.n_pulls)
-    } else if (msg.type === 'error') {
-      console.error('Room5 error:', msg.message)
+      setRevealed(true)
+      setAutoplay(false)
+      setRevealBanner(true)
+      clearTimeout(revealBannerTimeoutRef.current)
+      revealBannerTimeoutRef.current = setTimeout(() => setRevealBanner(false), 2800)
     }
   }, [])
 
+  const handleMessage = useCallback(
+    (msg) => {
+      if (msg.type === 'pull_result') {
+        spinStateRef.current.msg = msg
+        if (spinStateRef.current.timerDone) applyPullResult(msg)
+      } else if (msg.type === 'reset_complete') {
+        setQValues(emptyArray(N_MACHINES, 0))
+        setPullCounts(emptyArray(N_MACHINES, 0))
+        setLastResults(emptyArray(N_MACHINES, null))
+        setSpinningMachine(null)
+        setPulling(false)
+        setTotalPulls(0)
+        setTotalReward(0)
+        setPullHistory([])
+        setTrueProbs(null)
+        setBestMachine(null)
+        setRevealed(false)
+        setRevealBanner(false)
+        setAutoplay(false)
+      } else if (msg.type === 'error') {
+        console.error('Room5 error:', msg.message)
+      }
+    },
+    [applyPullResult]
+  )
+
   const { send, connected } = useWebSocket(5, handleMessage)
+
+  const pullMachine = useCallback(
+    (idx) => {
+      if (pulling || revealed) return
+      setPulling(true)
+      setSpinningMachine(idx)
+      spinStateRef.current = { timerDone: false, msg: null }
+      send({ type: 'single_pull', machine: idx, params: { alpha: params.alpha, n_pulls: MAX_PULLS } })
+      setTimeout(() => {
+        spinStateRef.current.timerDone = true
+        if (spinStateRef.current.msg) applyPullResult(spinStateRef.current.msg)
+      }, SPIN_MS)
+    },
+    [pulling, revealed, send, params.alpha, applyPullResult]
+  )
+
+  const doAutoTick = useCallback(() => {
+    if (pulling || revealed) return
+    const idx = Math.random() < params.epsilon ? Math.floor(Math.random() * N_MACHINES) : qValues.indexOf(Math.max(...qValues))
+    pullMachine(idx)
+  }, [pulling, revealed, params.epsilon, qValues, pullMachine])
+
   useEffect(() => {
-    sendRef.current = send
-  }, [send])
+    doAutoTickRef.current = doAutoTick
+  }, [doAutoTick])
+
+  useEffect(() => {
+    if (!autoplay) return
+    const interval = setInterval(() => doAutoTickRef.current(), AUTOPLAY_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [autoplay])
 
   const onParamChange = (key, value) => setParams((p) => ({ ...p, [key]: value }))
+  const onReset = () => {
+    setAutoplay(false)
+    send({ type: 'reset' })
+  }
 
-  const onStart = () => {
-    setPullHistory([])
-    setLastResults(emptyArray(N_MACHINES, null))
-    setTrueProbs(null)
-    setBestMachine(null)
-    setStatus('training')
-    send({ type: 'start_training', params })
-  }
-  const onPause = () => {
-    setStatus('paused')
-    send({ type: 'pause_training' })
-  }
-  const onResume = () => {
-    setStatus('training')
-    send({ type: 'resume_training' })
-  }
-  const onReset = () => send({ type: 'reset' })
-
-  const bestQIdx = useMemo(() => qValues.indexOf(Math.max(...qValues)), [qValues])
+  const bestQIdx = qValues.indexOf(Math.max(...qValues))
+  const actualBestIdx = trueProbs ? trueProbs.indexOf(Math.max(...trueProbs)) : null
 
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
         <div style={styles.explainer}>
-          חיזקי doesn't know which machine gives bones most often. Using
-          epsilon-greedy: mostly exploit the best known machine, sometimes
-          explore the others. Watch the Q-values converge to the true
+          חיזקי doesn't know which machine gives bones most often. Click a
+          machine to pull it yourself, or let חיזקי play on his own using
+          epsilon-greedy: mostly exploiting the best known machine, sometimes
+          exploring the others. Watch the Q-values converge to the true
           (hidden) probabilities!
         </div>
-        <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={status === 'training'} />
-        <TrainingControls status={status} onStart={onStart} onPause={onPause} onResume={onResume} onReset={onReset} />
+        <HyperparamPanel schema={SCHEMA} values={params} onChange={onParamChange} disabled={false} />
+
+        <label style={styles.autoplayRow}>
+          <input
+            type="checkbox"
+            checked={autoplay}
+            disabled={revealed}
+            onChange={(e) => setAutoplay(e.target.checked)}
+          />
+          🤖 Let חיזקי play (auto-pulls every {AUTOPLAY_INTERVAL_MS}ms)
+        </label>
+
+        <button style={styles.resetBtn} onClick={onReset}>
+          ⟲ Reset
+        </button>
+
         <div style={styles.connStatus}>WS: {connected ? 'connected' : 'disconnected'}</div>
-        <TrainingStatusBanner status={status} />
-        {status === 'training' && (
-          <div style={styles.liveCounter}>
-            Pull {livePull + 1} / {nPulls} &nbsp;·&nbsp; Total reward: {totalReward.toFixed(0)}
-          </div>
-        )}
-        {status === 'complete' && trueProbs && (
-          <div style={styles.resultPanel}>
-            <div style={styles.resultTitle}>Training complete</div>
+
+        <div style={styles.liveCounter}>
+          Pull {totalPulls} / {MAX_PULLS} &nbsp;·&nbsp; Total reward: {totalReward.toFixed(0)}
+        </div>
+
+        {revealed && trueProbs && (
+          <div style={styles.resultPanel} className="bandit-spin">
+            <div style={styles.resultTitle}>🎉 Round complete — revealed!</div>
             <div>
-              Best machine: #{bestMachine + 1} (Q={qValues[bestMachine].toFixed(2)})
+              Best machine (by Q): #{bestMachine + 1} (Q={qValues[bestMachine].toFixed(2)})
             </div>
             <div>
-              True prob was: {trueProbs[bestMachine].toFixed(2)}{' '}
-              {bestMachine === trueProbs.indexOf(Math.max(...trueProbs)) ? '✓ correct!' : ''}
+              Actually best machine: #{actualBestIdx + 1} (true prob {trueProbs[actualBestIdx].toFixed(2)})
             </div>
-            <div style={{ marginTop: '4px', opacity: 0.8 }}>Total reward: {totalReward.toFixed(0)} / {nPulls} pulls</div>
+            <div style={{ marginTop: '4px', fontWeight: 600, color: bestMachine === actualBestIdx ? '#00ffaa' : '#ff8888' }}>
+              {bestMachine === actualBestIdx ? 'חיזקי chose correctly! ✓' : 'חיזקי picked the wrong machine ✗'}
+            </div>
           </div>
         )}
+
+        <div style={styles.chartCol}>
+          <RewardChart data={pullHistory} xKey="pull" yKey="total_reward" title="Cumulative reward" />
+        </div>
+        <div style={styles.wrap}>
+          <h4 style={styles.chartTitle}>Q-value convergence</h4>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={pullHistory} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
+              <CartesianGrid stroke="#103252" strokeDasharray="3 3" />
+              <XAxis dataKey="pull" stroke="#5a8fb0" fontSize={11} />
+              <YAxis stroke="#5a8fb0" fontSize={11} domain={[0, 1]} />
+              <Tooltip contentStyle={{ background: '#04162c', border: '1px solid #1a4a6a' }} />
+              <Line type="monotone" dataKey="q0" stroke={MACHINE_COLORS[0]} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line type="monotone" dataKey="q1" stroke={MACHINE_COLORS[1]} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line type="monotone" dataKey="q2" stroke={MACHINE_COLORS[2]} dot={false} strokeWidth={2} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </aside>
 
       <main style={styles.main}>
@@ -188,33 +254,23 @@ export default function Room5_Bandit() {
               qValue={qValues[i]}
               pullCount={pullCounts[i]}
               lastResult={lastResults[i]}
-              justPulled={lastPulledMachine === i}
+              spinning={spinningMachine === i}
+              isBest={i === bestQIdx}
               trueProb={trueProbs ? trueProbs[i] : 0}
-              revealed={Boolean(trueProbs)}
-              isBest={status === 'complete' ? i === bestMachine : i === bestQIdx}
+              revealed={revealed}
+              disabled={pulling || revealed}
+              onPull={() => pullMachine(i)}
             />
           ))}
         </div>
 
-        <div style={styles.chartsRow}>
-          <div style={styles.chartCol}>
-            <RewardChart data={pullHistory} xKey="pull" yKey="total_reward" title="Cumulative reward" />
+        {revealBanner && (
+          <div style={styles.revealBannerWrap}>
+            <div style={styles.revealBanner} className="bandit-reveal-banner">
+              🎉 True probabilities revealed!
+            </div>
           </div>
-          <div style={styles.wrap}>
-            <h4 style={styles.chartTitle}>Q-value convergence</h4>
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={pullHistory} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
-                <CartesianGrid stroke="#103252" strokeDasharray="3 3" />
-                <XAxis dataKey="pull" stroke="#5a8fb0" fontSize={11} />
-                <YAxis stroke="#5a8fb0" fontSize={11} domain={[0, 1]} />
-                <Tooltip contentStyle={{ background: '#04162c', border: '1px solid #1a4a6a' }} />
-                <Line type="monotone" dataKey="q0" stroke={MACHINE_COLORS[0]} dot={false} strokeWidth={2} isAnimationActive={false} />
-                <Line type="monotone" dataKey="q1" stroke={MACHINE_COLORS[1]} dot={false} strokeWidth={2} isAnimationActive={false} />
-                <Line type="monotone" dataKey="q2" stroke={MACHINE_COLORS[2]} dot={false} strokeWidth={2} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        )}
       </main>
 
       <style>{`
@@ -224,6 +280,30 @@ export default function Room5_Bandit() {
           100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
         .bandit-spin { animation: bandit-spin-kf 0.35s ease-out; }
+
+        @keyframes bandit-spinning-kf {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(-4px) rotate(-6deg); }
+          50% { transform: translateY(0) rotate(0deg); }
+          75% { transform: translateY(4px) rotate(6deg); }
+        }
+        .bandit-spinning { animation: bandit-spinning-kf 0.25s linear infinite; }
+
+        @keyframes bandit-lever-kf {
+          0% { transform: translateY(0); }
+          40% { transform: translateY(10px); }
+          100% { transform: translateY(0); }
+        }
+        .bandit-lever-pulled { animation: bandit-lever-kf 0.4s ease-out; }
+
+        @keyframes bandit-reveal-kf {
+          0% { opacity: 0; transform: translateY(-12px) scale(0.9); }
+          15% { opacity: 1; transform: translateY(0) scale(1.05); }
+          25% { transform: scale(1); }
+          85% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        .bandit-reveal-banner { animation: bandit-reveal-kf 2.8s ease-in-out; }
       `}</style>
     </div>
   )
@@ -252,6 +332,27 @@ const styles = {
     fontSize: '11px',
     lineHeight: 1.6,
     color: '#d7ecff',
+  },
+  autoplayRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    color: '#7fd9ff',
+    background: '#06192e',
+    border: '1px solid #103252',
+    borderRadius: '6px',
+    padding: '8px 10px',
+    cursor: 'pointer',
+  },
+  resetBtn: {
+    background: '#0a2a4a',
+    border: '1px solid #1a4a6a',
+    borderRadius: '6px',
+    color: '#d7ecff',
+    padding: '8px 14px',
+    fontSize: '13px',
+    alignSelf: 'flex-start',
   },
   connStatus: {
     fontSize: '11px',
@@ -288,17 +389,18 @@ const styles = {
     padding: '20px',
     gap: '20px',
     overflowY: 'auto',
+    position: 'relative',
   },
   machinesRow: {
     display: 'flex',
-    gap: '20px',
+    gap: '24px',
     justifyContent: 'center',
   },
   machine: {
     width: '200px',
     background: '#06192e',
     border: '2px solid #1a4a6a',
-    borderRadius: '12px',
+    borderRadius: '16px',
     padding: '16px',
     display: 'flex',
     flexDirection: 'column',
@@ -310,9 +412,42 @@ const styles = {
     fontWeight: 700,
     fontSize: '14px',
   },
+  displayWindow: {
+    width: '100%',
+    height: '80px',
+    background: '#020e1c',
+    border: '2px solid #0a2a4a',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: 'inset 0 0 12px #000',
+  },
   machineIcon: {
-    fontSize: '40px',
+    fontSize: '36px',
     lineHeight: 1,
+  },
+  pullButton: {
+    width: '100%',
+    background: '#0a1a2a',
+    border: '2px solid',
+    borderRadius: '10px',
+    padding: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+  },
+  leverKnob: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+  },
+  pullLabel: {
+    fontSize: '11px',
   },
   pullCount: {
     fontSize: '11px',
@@ -340,18 +475,10 @@ const styles = {
     color: '#d7ecff',
     marginTop: '2px',
   },
-  chartsRow: {
-    display: 'flex',
-    gap: '16px',
-    flexWrap: 'wrap',
-  },
   chartCol: {
-    flex: 1,
-    minWidth: '280px',
+    minWidth: '100px',
   },
   wrap: {
-    flex: 1,
-    minWidth: '280px',
     background: '#06192e',
     border: '1px solid #103252',
     borderRadius: '8px',
@@ -361,5 +488,22 @@ const styles = {
     margin: '0 0 4px 4px',
     fontSize: '12px',
     color: '#7fd9ff',
+  },
+  revealBannerWrap: {
+    position: 'absolute',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 6,
+    pointerEvents: 'none',
+  },
+  revealBanner: {
+    background: 'rgba(0,255,170,0.18)',
+    border: '1px solid #00ffaa',
+    color: '#00ffaa',
+    borderRadius: '10px',
+    padding: '12px 22px',
+    fontSize: '16px',
+    fontWeight: 700,
   },
 }

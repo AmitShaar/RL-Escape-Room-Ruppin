@@ -187,17 +187,19 @@ L(θ) = MSE( Q_θ(s,a),  r + γ (1-done) max_a' Q_θ⁻(s',a') )
 
 **Action space.** Pull one of 3 machines.
 
-**Reward function.** Pulling machine `i` returns a Bernoulli reward: `1.0` ("a bone!") with the machine's hidden probability `true_probs[i]`, else `0.0`. The 3 probabilities are randomized (and hidden from the agent) every time training starts.
+**Reward function.** Pulling machine `i` returns a Bernoulli reward: `1.0` ("a bone!") with the machine's hidden probability `true_probs[i]`, else `0.0`. The 3 probabilities are randomized (and hidden) every time the room is reset.
 
-**Algorithm — epsilon-greedy with incremental-mean Q-values.** No transition model, no bootstrapping: `Q(a) += α · (reward − Q(a))` after every pull, with the action chosen greedily (`argmax Q(a)`) except with probability `epsilon`, where a uniformly random machine is pulled instead. This is the simplest possible illustration of the explore/exploit trade-off that every other room's epsilon-greedy step is also making, just without any state or environment dynamics around it.
+**Interaction model.** Unlike every other room, there's no Train button here - you click a machine yourself to pull its lever (with a 0.5s spin before the result reveals), or flip on "Let חיזקי play" to have him auto-pull every 300ms using epsilon-greedy. Either way, every single pull goes through the same `single_pull` WebSocket message and updates Q-values live; the original auto-training loop (`start_training` / `train()`) is still there server-side as a fallback, just no longer wired to any button.
+
+**Algorithm — epsilon-greedy with incremental-mean Q-values.** No transition model, no bootstrapping: `Q(a) += α · (reward − Q(a))` after every pull. Manual clicks always pull exactly the machine you clicked; epsilon only governs the autoplay toggle's own choice (`argmax Q(a)` to exploit, except with probability `epsilon`, where it picks a uniformly random machine to explore instead). This is the simplest possible illustration of the explore/exploit trade-off that every other room's epsilon-greedy step is also making, just without any state or environment dynamics around it.
 
 **Hyperparameters found to work (reasonably) well.**
 
 | Param | Value | Why |
 |---|---|---|
-| epsilon | 0.2 | High enough to keep sampling all 3 machines early on (so a machine that's merely *unlucky* on its first pull isn't abandoned forever), low enough to mostly exploit once Q-values separate. |
-| alpha | 0.1 | A fixed (rather than `1/n`) learning rate, so Q-values keep adapting slightly even late in training rather than fully freezing. |
-| n_pulls | 200 | Enough pulls for the Q-value estimates to clearly separate and converge toward the true probabilities at this epsilon/alpha. |
+| epsilon | 0.2 | Used only by the autoplay toggle. High enough to keep sampling all 3 machines early on (so a machine that's merely *unlucky* on its first pull isn't abandoned forever), low enough to mostly exploit once Q-values separate. |
+| alpha | 0.1 | A fixed (rather than `1/n`) learning rate, so Q-values keep adapting slightly even late in the round rather than fully freezing. |
+| n_pulls | 200 (fixed) | Enough pulls for the Q-value estimates to clearly separate and converge toward the true probabilities at this epsilon/alpha; once reached, the true probabilities are revealed and pulling locks until Reset. |
 
 **Learning curve.**
 
@@ -242,6 +244,6 @@ R =  +100   reaching the exit, terminal
 
 Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-6).
 
-Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`.
+Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`, `single_pull` (Room 5 only - `{ type: "single_pull", machine: 0|1|2, params: {...} }`).
 
-Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `error`, `pull_result` (Room 5 only), `stage_start` (Room 6 only).
+Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `error`, `pull_result` (Room 5 - sent per pull, with `done`/`true_probs`/`best_machine` once the pull cap is reached), `stage_start` (Room 6 only).

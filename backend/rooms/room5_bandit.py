@@ -27,12 +27,16 @@ class Room5Bandit(BaseRoom):
         self.true_probs = []
         self.q_values = [0.0] * self.n_machines
         self.pull_counts = [0] * self.n_machines
+        self.total_pulls = 0
+        self.total_reward = 0.0
         self.reset()
 
     def reset(self):
         self.true_probs = sorted(random.uniform(0.1, 0.9) for _ in range(self.n_machines))
         self.q_values = [0.0] * self.n_machines
         self.pull_counts = [0] * self.n_machines
+        self.total_pulls = 0
+        self.total_reward = 0.0
         self.stop_requested = False
         self.paused = False
         return None
@@ -61,6 +65,41 @@ class Room5Bandit(BaseRoom):
         if random.random() < epsilon:
             return random.randint(0, self.n_machines - 1)
         return int(np.argmax(self.q_values))
+
+    async def single_pull(self, machine_idx, params):
+        """One manually- (or autoplay-) triggered pull on a specific machine.
+
+        Unlike train()'s loop, the caller (the interactive frontend) always
+        picks the exact machine - epsilon only matters there for the
+        autoplay toggle's own local choice, not anything server-side. This
+        is the path the redesigned click-to-pull UI uses; train() is left
+        intact below purely as a fallback, since the room can still receive
+        a "start_training" message even though the UI no longer sends one.
+        """
+        self.alpha = params.get("alpha", self.alpha)
+        self.n_pulls = params.get("n_pulls", self.n_pulls)
+
+        reward = self.pull(machine_idx)
+        self.pull_counts[machine_idx] += 1
+        self.total_pulls += 1
+        self.total_reward += reward
+        self.q_values[machine_idx] += self.alpha * (reward - self.q_values[machine_idx])
+
+        result = {
+            "type": "pull_result",
+            "machine": machine_idx,
+            "reward": reward,
+            "q_values": self.q_values[:],
+            "pull_counts": self.pull_counts[:],
+            "total_pulls": self.total_pulls,
+            "n_pulls": self.n_pulls,
+            "total_reward": self.total_reward,
+            "done": self.total_pulls >= self.n_pulls,
+        }
+        if result["done"]:
+            result["true_probs"] = self.true_probs
+            result["best_machine"] = int(np.argmax(self.q_values))
+        return result
 
     @staticmethod
     async def _safe_send(websocket, payload):

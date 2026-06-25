@@ -73,6 +73,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 room.paused = False
                 train_task = asyncio.create_task(room.train(data.get("params", {}), websocket))
 
+            elif msg_type == "single_pull":
+                if hasattr(room, "single_pull"):
+                    result = await room.single_pull(data.get("machine"), data.get("params", {}))
+                    await websocket.send_json(result)
+                else:
+                    await websocket.send_json({"type": "error", "message": "single_pull not supported in this room"})
+
             elif msg_type == "pause_training":
                 room.request_pause()
 
