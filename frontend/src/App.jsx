@@ -5,9 +5,10 @@ import Room1_DP from './rooms/Room1_DP.jsx'
 import Room2_SARSA from './rooms/Room2_SARSA.jsx'
 import Room3_QLearning from './rooms/Room3_QLearning.jsx'
 import Room4_DQN from './rooms/Room4_DQN.jsx'
-import Room5_MC from './rooms/Room5_MC.jsx'
+import Room5_Bandit from './rooms/Room5_Bandit.jsx'
+import Room6_Curriculum from './rooms/Room6_Curriculum.jsx'
 
-const AVAILABLE_ROOMS = [1, 2, 3, 4, 5]
+const AVAILABLE_ROOMS = [1, 2, 3, 4, 5, 6]
 
 function RoomSlot({ active, children }) {
   return <div style={{ ...styles.roomSlot, display: active ? 'block' : 'none' }}>{children}</div>
@@ -26,7 +27,7 @@ export default function App() {
         </span>
         <span style={styles.statusSep}>|</span>
         <span>Algorithm: {meta.algo}</span>
-        <span style={styles.subtitle}>Follow חיזקי's journey through 5 rooms</span>
+        <span style={styles.subtitle}>Follow חיזקי's journey through 6 rooms</span>
       </div>
       <div style={styles.content}>
         {/* All 5 rooms stay mounted permanently (just hidden via CSS when
@@ -51,7 +52,10 @@ export default function App() {
           <Room4_DQN />
         </RoomSlot>
         <RoomSlot active={activeRoom === 5}>
-          <Room5_MC />
+          <Room5_Bandit />
+        </RoomSlot>
+        <RoomSlot active={activeRoom === 6}>
+          <Room6_Curriculum />
         </RoomSlot>
       </div>
     </div>

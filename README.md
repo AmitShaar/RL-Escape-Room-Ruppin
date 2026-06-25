@@ -1,6 +1,6 @@
 # Hizki In Space RL
 
-A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a space-suited dog, who progresses through 5 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
+A reinforcement-learning escape room game. The agent is **חיזקי (Khizki)**, a space-suited dog, who progresses through 6 rooms looking for a bone — each room is a different RL algorithm solving a different kind of environment. Wherever the underlying RL formulation refers to a terminal "exit" state, the 3D scene renders it as a glowing, rotating bone that חיזקי is trying to reach. Backend is FastAPI + WebSocket + NumPy + PyTorch; frontend is React + Three.js (`@react-three/fiber`) + Recharts.
 
 ```
 backend/   FastAPI app, WebSocket protocol, one room module per algorithm
@@ -181,43 +181,67 @@ L(θ) = MSE( Q_θ(s,a),  r + γ (1-done) max_a' Q_θ⁻(s',a') )
 
 ---
 
-## Room 5 — The Asteroid Field (Monte Carlo Control)
+## Room 5 — The Bone Machines (Multi-Armed Bandit)
 
-**State space.** `(row, col, bones_bitmask)` on the same 10×10 grid as Rooms 2/3 — `bones_bitmask` tracks which of the `K` scattered bones have been collected so far, so the optimal policy correctly depends on what's left to pick up.
+**State space.** None — this is a *stateless* bandit problem, the simplest RL setting: there's no position, no episode, just "which of 3 actions gives the best average reward?"
 
-**Action space.** 4 grid moves (UP/DOWN/LEFT/RIGHT).
+**Action space.** Pull one of 3 machines.
 
-**Reward function.**
-```
-R =  +100   reaching the exit with every bone collected, terminal
-     +20    collecting a not-yet-collected bone
-     -0.1   otherwise (step cost)
-```
+**Reward function.** Pulling machine `i` returns a Bernoulli reward: `1.0` ("a bone!") with the machine's hidden probability `true_probs[i]`, else `0.0`. The 3 probabilities are randomized (and hidden from the agent) every time training starts.
 
-**Dynamics.** Walls block movement; slippery "asteroid" cells have `slip_prob` chance per step of overriding the chosen action with a random one.
-
-**Algorithm — First-Visit Monte Carlo Control.** Unlike SARSA/Q-Learning, which apply a TD update after every single step, Monte Carlo plays out the **entire episode first**, then walks back through the recorded trajectory from the end, accumulating the discounted return `G ← reward + γ·G` and applying a first-visit incremental-mean update `Q(s,a) += α·(G − Q(s,a))` to each `(state, action)` pair the first time it's encountered in that backward pass. This means a single early exploratory wrong turn only gets "blamed" or "credited" once the actual full-episode outcome is known, rather than being adjusted online step-by-step.
+**Algorithm — epsilon-greedy with incremental-mean Q-values.** No transition model, no bootstrapping: `Q(a) += α · (reward − Q(a))` after every pull, with the action chosen greedily (`argmax Q(a)`) except with probability `epsilon`, where a uniformly random machine is pulled instead. This is the simplest possible illustration of the explore/exploit trade-off that every other room's epsilon-greedy step is also making, just without any state or environment dynamics around it.
 
 **Hyperparameters found to work (reasonably) well.**
 
 | Param | Value | Why |
 |---|---|---|
-| k_bones | 3 | Keeps the bitmask state space (`2^k`) small enough that 500 episodes is enough to visit `(state, action)` pairs many times each. |
-| slip_prob | 0.1 | Adds meaningful stochasticity without making the per-episode return too noisy for MC's full-return updates to converge cleanly. |
-| episodes | 500 | MC only updates once per episode (vs. every step for TD methods), so it needs more episodes than SARSA/Q-Learning to see comparable improvement. |
+| epsilon | 0.2 | High enough to keep sampling all 3 machines early on (so a machine that's merely *unlucky* on its first pull isn't abandoned forever), low enough to mostly exploit once Q-values separate. |
+| alpha | 0.1 | A fixed (rather than `1/n`) learning rate, so Q-values keep adapting slightly even late in training rather than fully freezing. |
+| n_pulls | 200 | Enough pulls for the Q-value estimates to clearly separate and converge toward the true probabilities at this epsilon/alpha. |
 
 **Learning curve.**
 
-![Room 5 reward per episode](docs/screenshots/room5.png)
+![Room 5 cumulative reward and Q-value convergence](docs/screenshots/room5.png)
 
-**Key insight.** Because Monte Carlo only learns at the end of each episode from the *actual* observed return rather than a bootstrapped estimate, its early reward curve is noisier than SARSA/Q-Learning's (no bias from an initially-wrong Q-table feeding into the update), but it still converges reliably once enough episodes have been played for the relevant `(state, action, bones_bitmask)` combinations to be visited.
+**Key insight.** Because there's no state to generalize across, this room makes the *cost of exploration* directly visible: every pull spent on a low-probability machine is a pull not spent exploiting the best one, yet without those exploratory pulls the agent can't tell early luck from a genuinely good machine. Watching the three Q-value lines separate and converge toward the (afterward-revealed) true probabilities is a direct visualization of that resolving over time.
+
+---
+
+## Room 6 — The Growing Maze (Curriculum Learning)
+
+**State space.** `(row, col)` — but on a grid whose size *changes between stages*: 4×4, then 6×6, then 10×10.
+
+**Action space.** 4 grid moves (UP/DOWN/LEFT/RIGHT).
+
+**Reward function.**
+```
+R =  +100   reaching the exit, terminal
+     -0.1   otherwise (step cost)
+```
+
+**Dynamics.** Each stage randomizes its own walls (10% of cells) and slip probability (`0.0 → 0.1 → 0.15` across stages 1-3), so later stages are harder both because they're bigger *and* because they're more stochastic.
+
+**Algorithm — Q-Learning with Q-table transfer between stages.** Standard off-policy Q-Learning runs within each stage. When a stage finishes, the Q-table isn't thrown away: it's copied into the top-left `old_size × old_size` corner of a freshly-zeroed `new_size × new_size` table before the next stage begins, so whatever חיזקי already learned about navigating that region of the grid carries forward instead of starting from scratch.
+
+**Hyperparameters found to work (reasonably) well.**
+
+| Param | Value | Why |
+|---|---|---|
+| episodes per stage | 100 / 150 / 250 | Each stage needs enough episodes to converge at its own size and slip probability; later (bigger, slippier) stages get proportionally more. |
+| epsilon_decay | 0.99 (fixed, not exposed) | Decays slowly enough that exploration carries over meaningfully into the next stage rather than bottoming out mid-stage. |
+
+**Learning curve.**
+
+![Room 6 reward per episode across all 3 stages](docs/screenshots/room6.png)
+
+**Key insight.** Because walls are re-randomized every stage, the transferred Q-values aren't always still correct for the new layout (a learned "this is the fast path" might now run into a wall) — but they're still a far better starting point than zeros, since most of the *general* navigation skill (e.g. "head toward higher row/col") still applies. The reward chart's per-stage divider lines make this visible directly: each stage starts above where the previous stage started, even though the grid just got bigger and harder.
 
 ---
 
 ## WebSocket protocol summary
 
-Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-5).
+Single endpoint per room: `ws://localhost:8000/ws/{room_id}` (room_id 1-6).
 
 Client → server: `start_training`, `pause_training`, `resume_training`, `reset`, `get_replay`.
 
-Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `error`.
+Server → client: `room_info` (static/preview map data, sent on connect and at training start), `vi_iteration` (Room 1 only), `step_update`, `episode_end`, `training_complete`, `replay_data`, `error`, `pull_result` (Room 5 only), `stage_start` (Room 6 only).
