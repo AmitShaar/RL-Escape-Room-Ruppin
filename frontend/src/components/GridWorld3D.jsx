@@ -156,7 +156,7 @@ export default function GridWorld3D({
         cells.push(<HoleSwirl key={`${key}-swirl`} row={r} col={c} />)
       }
       if (isTrap) {
-        const [tx, ty, tz] = gridToWorld(r, c, 0.28)
+        const [tx, ty, tz] = gridToWorld(r, c, 0.05)
         cells.push(<CatDanger key={`${key}-cat`} position={[tx, ty, tz]} />)
       }
 
