@@ -21,6 +21,7 @@ import DogModel from '../components/DogModel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 // Mirrors backend/rooms/room6_curriculum.py's STAGES - needed on the
 // frontend too, to know where each stage's episodes fall in the global
@@ -83,6 +84,7 @@ export default function Room6_Curriculum() {
   const [episodeHistory, setEpisodeHistory] = useState([])
   const [trajectory, setTrajectory] = useState([])
   const [agentRC, setAgentRC] = useState([0, 0])
+  const [replayStepIdx, setReplayStepIdx] = useState(0)
   const [liveAgentPos, setLiveAgentPos] = useState(null)
   const [liveEpisode, setLiveEpisode] = useState(null)
   const [liveStep, setLiveStep] = useState(0)
@@ -155,6 +157,7 @@ export default function Room6_Curriculum() {
         setEpisodeHistory([])
         setTrajectory([])
         setAgentRC([0, 0])
+        setReplayStepIdx(0)
         setLiveAgentPos(null)
         setLiveEpisode(null)
         setFlashOutcome(null)
@@ -206,12 +209,22 @@ export default function Room6_Curriculum() {
     (step) => {
       const point = trajectory[step]
       setAgentRC(point ? point.pos : [0, 0])
+      setReplayStepIdx(step)
     },
     [trajectory]
   )
 
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], size, 0.4), [displayRC, size])
+
+  // Live-updating reward readout while scrubbing/playing the final-stage
+  // replay: the step reward at the current frame, plus the running sum
+  // from the start of the trajectory up to (and including) that frame.
+  const stepReward = trajectory[replayStepIdx]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStepIdx + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStepIdx]
+  )
 
   return (
     <div style={styles.layout}>
@@ -276,6 +289,14 @@ export default function Room6_Curriculum() {
           )}
           {stageFlash && (
             <div style={styles.stageFlashBanner}>Grid grew → {stageFlash}!</div>
+          )}
+          {status === 'complete' && trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStepIdx}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
           )}
         </div>
       </main>

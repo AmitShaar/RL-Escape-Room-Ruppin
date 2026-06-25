@@ -12,6 +12,7 @@ import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 // Trimmed to the 6 controls that matter day-to-day; fragment/shark counts
 // and reward values plus epsilon_decay stay fixed at sensible defaults
@@ -215,6 +216,15 @@ export default function Room3_QLearning() {
   )
   const sharkPos = liveSharkPos || replaySharkPos
 
+  // Live-updating reward readout while scrubbing/playing the best-episode
+  // replay: the step reward at the current frame, plus the running sum
+  // from the start of the trajectory up to (and including) that frame.
+  const stepReward = trajectory[replayStep]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStep + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStep]
+  )
+
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
@@ -261,9 +271,21 @@ export default function Room3_QLearning() {
               epsilon={liveEpsilon}
             />
           )}
+          {status === 'complete' && trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStep}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
+          )}
         </div>
         <div style={styles.heatmapWrap}>
-          <QValueHeatmap table={qHeatmap} special={{}} label="max Q(s,a) Heatmap" />
+          <QValueHeatmap
+            table={qHeatmap}
+            special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9] }}
+            label="max Q(s,a) Heatmap"
+          />
         </div>
       </main>
     </div>

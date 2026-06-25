@@ -12,6 +12,7 @@ import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 // Trimmed to the 6 controls that matter day-to-day; slip/beacon-count/
 // reward values and epsilon_decay stay fixed at sensible defaults below
@@ -63,6 +64,7 @@ export default function Room2_SARSA() {
   const [liveTotalEpisodes, setLiveTotalEpisodes] = useState(params.episodes)
   const [liveEpsilon, setLiveEpsilon] = useState(null)
   const [flashOutcome, setFlashOutcome] = useState(null)
+  const [replayStepIdx, setReplayStepIdx] = useState(0)
 
   const sendRef = useRef(() => {})
   const flashTimeoutRef = useRef(null)
@@ -106,6 +108,7 @@ export default function Room2_SARSA() {
       setBestEpisode(null)
       setLiveEpisode(null)
       setFlashOutcome(null)
+      setReplayStepIdx(0)
       setStatus('idle')
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
     } else if (msg.type === 'error') {
@@ -151,12 +154,22 @@ export default function Room2_SARSA() {
       const point = trajectory[step]
       setAgentRC(point ? point.pos : [0, 0])
       setVisitedCount(point ? point.visited : 0)
+      setReplayStepIdx(step)
     },
     [trajectory]
   )
 
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
+
+  // Live-updating reward readout while scrubbing/playing the best-episode
+  // replay: the step reward at the current frame, plus the running sum
+  // from the start of the trajectory up to (and including) that frame.
+  const stepReward = trajectory[replayStepIdx]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStepIdx + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStepIdx]
+  )
 
   return (
     <div style={styles.layout}>
@@ -193,11 +206,19 @@ export default function Room2_SARSA() {
               epsilon={liveEpsilon}
             />
           )}
+          {status === 'complete' && trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStepIdx}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
+          )}
         </div>
         <div style={styles.heatmapWrap}>
           <QValueHeatmap
             table={qHeatmap}
-            special={{ vents: special.slip_cells, traps: special.traps }}
+            special={{ vents: special.slip_cells, traps: special.traps, bonuses: special.beacons, start: [0, 0], exit: [9, 9] }}
             label="max Q(s,a) Heatmap"
           />
         </div>

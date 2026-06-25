@@ -296,13 +296,26 @@ class Room1DP(BaseRoom):
         if disconnected:
             return
 
-        trajectory = self._rollout_policy(max_steps=params.get("max_steps", 200))
-        self.save_episode(0, trajectory)
+        # The policy is deterministic but the environment isn't (slip_prob,
+        # treat order encountered): roll it out `replay_episodes` times and
+        # keep the best-reward one for replay, the same "best of N" meaning
+        # best_episode/best_reward have in Rooms 2-4, rather than just
+        # replaying a single arbitrary rollout.
+        n_replay_episodes = max(1, params.get("replay_episodes", 1))
+        best_episode_idx = 0
+        best_total_reward = -float("inf")
+        for ep in range(n_replay_episodes):
+            trajectory = self._rollout_policy(max_steps=params.get("max_steps", 200))
+            total_reward = sum(step["reward"] for step in trajectory)
+            self.save_episode(ep, trajectory)
+            if total_reward > best_total_reward:
+                best_total_reward = total_reward
+                best_episode_idx = ep
 
         await self._safe_send(websocket, {
             "type": "training_complete",
-            "best_episode": iteration,
-            "best_reward": float(self.v_table[START[0], START[1], 0]),
+            "best_episode": best_episode_idx,
+            "best_reward": best_total_reward,
             "policy": self.policy[:, :, 0].tolist(),
             "v_table": self.v_table[:, :, 0].tolist(),
             **self.map_info(),

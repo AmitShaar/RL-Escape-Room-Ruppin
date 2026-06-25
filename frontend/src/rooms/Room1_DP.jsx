@@ -10,6 +10,7 @@ import GridWorld3D, { gridToWorld, GRID_SIZE } from '../components/GridWorld3D.j
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 // Trimmed to the 7 controls that actually matter to the user (rewards,
 // slip, gamma); environment complexity (walls/vents/traps/treat & hole
@@ -51,6 +52,7 @@ export default function Room1_DP() {
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
   const [currentRow, setCurrentRow] = useState(null)
+  const [replayStepIdx, setReplayStepIdx] = useState(0)
 
   const sendRef = useRef(() => {})
 
@@ -74,7 +76,7 @@ export default function Room1_DP() {
       setCurrentRow(null)
       setBestReward(msg.best_reward)
       setBestEpisode(msg.best_episode)
-      sendRef.current({ type: 'get_replay', episode: 0 })
+      sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
     } else if (msg.type === 'reset_complete') {
@@ -87,6 +89,7 @@ export default function Room1_DP() {
       setBestReward(null)
       setBestEpisode(null)
       setCurrentRow(null)
+      setReplayStepIdx(0)
       setStatus('idle')
       setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps, treats: msg.treats, holes: msg.holes })
     } else if (msg.type === 'error') {
@@ -131,11 +134,21 @@ export default function Room1_DP() {
       const point = trajectory[step]
       setAgentRC(point ? point.pos : [0, 0])
       setCollectedMask(point ? point.bitmask ?? 0 : 0)
+      setReplayStepIdx(step)
     },
     [trajectory]
   )
 
   const dogPos = useMemo(() => gridToWorld(agentRC[0], agentRC[1], 0.4), [agentRC])
+
+  // Live-updating reward readout while scrubbing/playing the best-run
+  // replay: the step reward at the current frame, plus the running sum
+  // from the start of the trajectory up to (and including) that frame.
+  const stepReward = trajectory[replayStepIdx]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStepIdx + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStepIdx]
+  )
 
   return (
     <div style={styles.layout}>
@@ -174,9 +187,21 @@ export default function Room1_DP() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
+          {trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStepIdx}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
+          )}
         </div>
         <div style={styles.heatmapWrap}>
-          <QValueHeatmap table={vTable} special={special} label="V(s) Heatmap" />
+          <QValueHeatmap
+            table={vTable}
+            special={{ ...special, bonuses: special.treats, start: [0, 0], exit: [9, 9] }}
+            label="V(s) Heatmap"
+          />
         </div>
       </main>
     </div>
@@ -232,6 +257,7 @@ const styles = {
   sceneWrap: {
     flex: 1,
     minWidth: 0,
+    position: 'relative',
   },
   heatmapWrap: {
     width: '300px',

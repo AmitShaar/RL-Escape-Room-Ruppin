@@ -15,16 +15,33 @@ function cellKind(r, c, special) {
   if (special.start && special.start[0] === r && special.start[1] === c) return 'start'
   if (special.exit && special.exit[0] === r && special.exit[1] === c) return 'exit'
   if (special.walls?.has(key)) return 'wall'
+  if (special.holes?.has(key)) return 'hole'
   if (special.traps?.has(key)) return 'trap'
+  if (special.bonuses?.has(key)) return 'bonus'
   if (special.vents?.has(key)) return 'vent'
   return 'normal'
 }
 
+// Kept visually distinct from the orange-ish high end of the value
+// gradient itself, so "this cell is a bonus/reward spot" never gets
+// confused with "this cell just happens to have a high learned value".
 const KIND_COLORS = {
   wall: '#2a4a2a',
   trap: '#4a0a0a',
-  start: '#1a4a6a',
+  hole: '#150522',
+  bonus: '#ff66ff',
+  start: '#3388ff',
   exit: '#00ffaa',
+}
+
+const LEGEND_LABELS = {
+  start: 'Start',
+  exit: 'Exit (goal)',
+  bonus: 'Reward (+)',
+  trap: 'Danger (−)',
+  hole: 'Black hole (−)',
+  wall: 'Wall',
+  vent: 'Slippery',
 }
 
 export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap' }) {
@@ -49,10 +66,24 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
       ...special,
       walls: special.walls instanceof Set ? special.walls : new Set((special.walls || []).map((p) => `${p[0]},${p[1]}`)),
       traps: special.traps instanceof Set ? special.traps : new Set((special.traps || []).map((p) => `${p[0]},${p[1]}`)),
+      holes: special.holes instanceof Set ? special.holes : new Set((special.holes || []).map((p) => `${p[0]},${p[1]}`)),
+      bonuses: special.bonuses instanceof Set ? special.bonuses : new Set((special.bonuses || []).map((p) => `${p[0]},${p[1]}`)),
       vents: special.vents instanceof Set ? special.vents : new Set((special.vents || []).map((p) => `${p[0]},${p[1]}`)),
     }),
     [special]
   )
+
+  const presentKinds = useMemo(() => {
+    const kinds = new Set()
+    if (special.start) kinds.add('start')
+    if (special.exit) kinds.add('exit')
+    if (specialSets.bonuses.size) kinds.add('bonus')
+    if (specialSets.traps.size) kinds.add('trap')
+    if (specialSets.holes.size) kinds.add('hole')
+    if (specialSets.walls.size) kinds.add('wall')
+    if (specialSets.vents.size) kinds.add('vent')
+    return [...kinds]
+  }, [special.start, special.exit, specialSets])
 
   return (
     <div style={styles.wrap}>
@@ -67,7 +98,7 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
               <div
                 key={`${r}-${c}`}
                 style={{ ...styles.cell, background: bg }}
-                onMouseEnter={() => setHover({ r, c, v })}
+                onMouseEnter={() => setHover({ r, c, v, kind })}
                 onMouseLeave={() => setHover(null)}
                 onClick={() => onCellClick?.(r, c)}
               />
@@ -78,6 +109,17 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
       {hover && (
         <div style={styles.tooltip}>
           ({hover.r}, {hover.c}) → {hover.v.toFixed(3)}
+          {hover.kind !== 'normal' ? ` [${LEGEND_LABELS[hover.kind] ?? hover.kind}]` : ''}
+        </div>
+      )}
+      {presentKinds.length > 0 && (
+        <div style={styles.legend}>
+          {presentKinds.map((kind) => (
+            <span key={kind} style={styles.legendItem}>
+              <span style={{ ...styles.legendSwatch, background: KIND_COLORS[kind] }} />
+              {LEGEND_LABELS[kind]}
+            </span>
+          ))}
         </div>
       )}
     </div>
@@ -113,5 +155,26 @@ const styles = {
     fontSize: '11px',
     fontFamily: 'monospace',
     color: '#d7ecff',
+  },
+  legend: {
+    marginTop: '8px',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid #103252',
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '10px',
+    color: '#d7ecff',
+  },
+  legendSwatch: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '2px',
+    display: 'inline-block',
   },
 }
