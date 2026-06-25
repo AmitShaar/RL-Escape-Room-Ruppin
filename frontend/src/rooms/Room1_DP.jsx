@@ -13,14 +13,19 @@ import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 // Trimmed to the 7 controls that actually matter to the user (rewards,
-// slip, gamma); environment complexity (walls/vents/traps/treat & hole
-// counts, theta, trap penalty, step cost) stays fixed at the backend's
-// existing defaults instead of being exposed here.
+// slip, gamma); environment complexity (walls/vents/treat & hole counts,
+// theta, step cost) stays fixed at the backend's existing defaults
+// instead of being exposed here.
+//
+// Black holes always reset position with zero reward (no penalty slider
+// for them - that's the whole point of a hole vs. a trap); traps penalize
+// in place without resetting position, and that penalty is user-facing
+// here as "Danger penalty".
 const SCHEMA = [
   { key: 'gamma', label: 'γ (gamma)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
   { key: 'treat_reward', label: '🦴 Treat reward', min: 1, max: 20, step: 1 },
-  { key: 'hole_penalty', label: '🕳️ Black hole penalty', min: -30, max: -1, step: 1 },
+  { key: 'trap_reward', label: '⚠️ Danger penalty (trap)', min: -30, max: -1, step: 1 },
   { key: 'bone_reward', label: '🦴 Bone reward (exit)', min: 10, max: 200, step: 10 },
   { key: 'replay_episodes', label: 'Episodes (replay)', min: 1, max: 10, step: 1 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 500, step: 50 },
@@ -30,7 +35,7 @@ const DEFAULT_PARAMS = {
   gamma: 0.95,
   slip_prob: 0.1,
   treat_reward: 5,
-  hole_penalty: -10,
+  trap_reward: -20,
   bone_reward: 100,
   replay_episodes: 1,
   max_steps: 200,

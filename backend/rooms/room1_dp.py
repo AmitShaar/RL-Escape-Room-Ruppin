@@ -40,7 +40,6 @@ class Room1DP(BaseRoom):
         self.trap_reward_val = -20.0
         self.step_penalty = -0.1
         self.treat_reward = 5.0
-        self.hole_penalty = -10.0
 
         self.walls = set()
         self.vents = set()
@@ -103,7 +102,6 @@ class Room1DP(BaseRoom):
         self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
         self.num_holes = params.get("num_holes", self.num_holes)
-        self.hole_penalty = params.get("hole_penalty", self.hole_penalty)
         self.treat_reward = params.get("treat_reward", self.treat_reward)
         # num_treats sizes the bitmask dimension of v_table/policy, so a
         # change has to regenerate the map (same pattern as K_beacons /
@@ -138,12 +136,15 @@ class Room1DP(BaseRoom):
 
         merged = {}
         for prob, nxt in raw_outcomes:
-            if nxt in self.traps:
-                key = ((START[0], START[1], bitmask), self.trap_reward_val, False)
+            # Holes teleport back to start with no reward penalty; traps
+            # penalize but leave the agent right where it stepped (see the
+            # docstring above for why these aren't both "reset + penalty").
+            if nxt in self.holes:
+                key = ((START[0], START[1], bitmask), 0.0, False)
             elif nxt == EXIT:
                 key = ((EXIT[0], EXIT[1], bitmask), self.exit_reward, True)
-            elif nxt in self.holes:
-                key = ((nxt[0], nxt[1], bitmask), self.hole_penalty, False)
+            elif nxt in self.traps:
+                key = ((nxt[0], nxt[1], bitmask), self.trap_reward_val, False)
             elif nxt in self.treat_index:
                 bit = 1 << self.treat_index[nxt]
                 if bitmask & bit:
@@ -182,12 +183,14 @@ class Room1DP(BaseRoom):
                 outcomes = [(1.0, self._intended_next(r, c, a_idx))]
 
             for prob, nxt in outcomes:
-                if nxt in self.traps:
-                    reward, next_rc, next_bm, done = self.trap_reward_val, START, bm_arr, False
+                # Same hole/trap split as transitions() above: holes reset
+                # position with zero reward, traps penalize in place.
+                if nxt in self.holes:
+                    reward, next_rc, next_bm, done = 0.0, START, bm_arr, False
                 elif nxt == EXIT:
                     reward, next_rc, next_bm, done = self.exit_reward, EXIT, bm_arr, True
-                elif nxt in self.holes:
-                    reward, next_rc, next_bm, done = self.hole_penalty, nxt, bm_arr, False
+                elif nxt in self.traps:
+                    reward, next_rc, next_bm, done = self.trap_reward_val, nxt, bm_arr, False
                 elif nxt in self.treat_index:
                     bit = 1 << self.treat_index[nxt]
                     has_bit = (bm_arr & bit) != 0
