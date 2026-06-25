@@ -2,6 +2,7 @@ import asyncio
 import random
 
 import numpy as np
+from starlette.websockets import WebSocketDisconnect
 
 from .base_room import BaseRoom
 
@@ -158,6 +159,23 @@ class Room3QLearning(BaseRoom):
 
     # ---------- per-algorithm episode runners ----------
 
+    @staticmethod
+    async def _safe_send(websocket, payload):
+        """Send, returning False instead of raising if the client is gone.
+
+        A disconnect during a long training run only flips stop_requested,
+        which the train() loop only notices at its next check - in between,
+        a send on the now-dead socket would otherwise raise
+        (WebSocketDisconnect, or a plain RuntimeError from Starlette
+        depending on exactly when the close happens) and crash this
+        background task with no one to catch it.
+        """
+        try:
+            await websocket.send_json(payload)
+            return True
+        except (WebSocketDisconnect, RuntimeError):
+            return False
+
     async def _run_episode_qlearning(self, epsilon, episode, websocket, total_episodes):
         row, col, bitmask = START[0], START[1], 0
         portal_pos = self.random_portal_position()
@@ -165,6 +183,7 @@ class Room3QLearning(BaseRoom):
         trajectory = [{"pos": [row, col], "reward": 0.0, "bitmask": bitmask}]
         total_reward = 0.0
         portal_discovered = False
+        disconnected = False
         step = 0
 
         for step in range(self.max_steps):
@@ -183,7 +202,7 @@ class Room3QLearning(BaseRoom):
             total_reward += reward
 
             if step % 5 == 0:
-                await websocket.send_json({
+                if not await self._safe_send(websocket, {
                     "type": "step_update",
                     "algo": "qlearning",
                     "episode": episode,
@@ -195,13 +214,15 @@ class Room3QLearning(BaseRoom):
                     "done": done,
                     "total_episodes": total_episodes,
                     "epsilon": epsilon,
-                })
+                }):
+                    disconnected = True
+                    break
                 if self.step_delay > 0:
                     await asyncio.sleep(self.step_delay)
             if done:
                 break
 
-        return trajectory, total_reward, step, portal_discovered, done
+        return trajectory, total_reward, step, portal_discovered, done, disconnected
 
     async def _run_episode_sarsa(self, epsilon, episode):
         row, col, bitmask = START[0], START[1], 0
@@ -239,7 +260,8 @@ class Room3QLearning(BaseRoom):
         portal_first_episode = None
         episode_rewards_q = {}
 
-        await websocket.send_json({"type": "room_info", **self.map_info()})
+        if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
+            return
 
         for episode in range(self.episodes):
             if self.stop_requested:
@@ -248,9 +270,11 @@ class Room3QLearning(BaseRoom):
             if self.stop_requested:
                 break
 
-            traj_q, reward_q, steps_q, portal_discovered, success_q = await self._run_episode_qlearning(
+            traj_q, reward_q, steps_q, portal_discovered, success_q, disconnected = await self._run_episode_qlearning(
                 epsilon, episode, websocket, self.episodes
             )
+            if disconnected:
+                return
             if portal_discovered and portal_first_episode is None:
                 portal_first_episode = episode
             self.save_episode(episode, traj_q)
@@ -259,20 +283,22 @@ class Room3QLearning(BaseRoom):
             reward_s, steps_s, success_s = await self._run_episode_sarsa(epsilon, episode)
             epsilon = max(0.01, epsilon * self.epsilon_decay)
 
-            await websocket.send_json({
+            if not await self._safe_send(websocket, {
                 "type": "episode_end", "algo": "qlearning",
                 "episode": episode, "total_reward": reward_q, "steps": steps_q, "epsilon": epsilon,
                 "success": success_q, "outcome": "success" if success_q else "fail",
-            })
-            await websocket.send_json({
+            }):
+                return
+            if not await self._safe_send(websocket, {
                 "type": "episode_end", "algo": "sarsa",
                 "episode": episode, "total_reward": reward_s, "steps": steps_s, "epsilon": epsilon,
                 "success": success_s, "outcome": "success" if success_s else "fail",
-            })
+            }):
+                return
             await asyncio.sleep(0)
 
         best_episode = max(episode_rewards_q, key=episode_rewards_q.get) if episode_rewards_q else 0
-        await websocket.send_json({
+        await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": best_episode,
             "best_reward": episode_rewards_q.get(best_episode, 0.0),

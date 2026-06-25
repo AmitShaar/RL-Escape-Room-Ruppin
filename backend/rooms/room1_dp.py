@@ -2,6 +2,7 @@ import asyncio
 import random
 
 import numpy as np
+from starlette.websockets import WebSocketDisconnect
 
 from .base_room import BaseRoom
 
@@ -214,6 +215,23 @@ class Room1DP(BaseRoom):
             "holes": list(self.holes),
         }
 
+    @staticmethod
+    async def _safe_send(websocket, payload):
+        """Send, returning False instead of raising if the client is gone.
+
+        A disconnect during a long training run only flips stop_requested,
+        which this loop only notices at its next check - in between, a send
+        on the now-dead socket would otherwise raise (WebSocketDisconnect,
+        or a plain RuntimeError from Starlette depending on exactly when the
+        close happens) and crash this background task with no one to catch
+        it.
+        """
+        try:
+            await websocket.send_json(payload)
+            return True
+        except (WebSocketDisconnect, RuntimeError):
+            return False
+
     async def train(self, params: dict, websocket):
         self.configure(params)
         n_bitmasks = 1 << self.num_treats
@@ -221,14 +239,16 @@ class Room1DP(BaseRoom):
         self.v_table = np.zeros((ROWS, COLS, n_bitmasks))
         self.policy = np.full((ROWS, COLS, n_bitmasks), -1, dtype=int)
         self.stop_requested = False
-        await websocket.send_json({"type": "room_info", **self.map_info()})
+        if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
+            return
 
         max_iterations = 1000
         iteration = 0
         delta = float("inf")
+        disconnected = False
 
         while iteration < max_iterations and delta >= self.theta:
-            if self.stop_requested:
+            if self.stop_requested or disconnected:
                 break
             await self.wait_if_paused()
             if self.stop_requested:
@@ -255,24 +275,31 @@ class Room1DP(BaseRoom):
 
                 display_v[r, :] = new_v[r, :, 0]
                 display_policy[r, :] = new_policy[r, :, 0]
-                await websocket.send_json({
+                if not await self._safe_send(websocket, {
                     "type": "vi_iteration",
                     "iteration": iteration + 1,
                     "current_row": r,
                     "delta": delta,
                     "v_table": display_v.tolist(),
                     "policy": display_policy.tolist(),
-                })
+                }):
+                    disconnected = True
+                    break
                 await asyncio.sleep(0.03)
 
+            if disconnected:
+                break
             self.v_table = new_v
             self.policy = new_policy
             iteration += 1
 
+        if disconnected:
+            return
+
         trajectory = self._rollout_policy(max_steps=params.get("max_steps", 200))
         self.save_episode(0, trajectory)
 
-        await websocket.send_json({
+        await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": iteration,
             "best_reward": float(self.v_table[START[0], START[1], 0]),

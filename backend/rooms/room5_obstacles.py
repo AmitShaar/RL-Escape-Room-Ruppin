@@ -5,6 +5,7 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
+from starlette.websockets import WebSocketDisconnect
 
 from .base_room import BaseRoom
 from models.dqn_network import DQNNetwork
@@ -211,6 +212,23 @@ class Room5Obstacles(BaseRoom):
         self.optimizer.step()
         return loss.item()
 
+    @staticmethod
+    async def _safe_send(websocket, payload):
+        """Send, returning False instead of raising if the client is gone.
+
+        A disconnect during a long training run only flips stop_requested,
+        which this loop only notices at its next check - in between, a send
+        on the now-dead socket would otherwise raise (WebSocketDisconnect,
+        or a plain RuntimeError from Starlette depending on exactly when the
+        close happens) and crash this background task with no one to catch
+        it.
+        """
+        try:
+            await websocket.send_json(payload)
+            return True
+        except (WebSocketDisconnect, RuntimeError):
+            return False
+
     async def train(self, params: dict, websocket):
         self.configure(params)
         dim = self.state_dim()
@@ -225,10 +243,12 @@ class Room5Obstacles(BaseRoom):
         global_step = 0
         episode_rewards = {}
 
-        await websocket.send_json({"type": "room_info", **self.map_info()})
+        if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
+            return
 
+        disconnected = False
         for episode in range(self.episodes):
-            if self.stop_requested:
+            if self.stop_requested or disconnected:
                 break
             await self.wait_if_paused()
             if self.stop_requested:
@@ -264,7 +284,7 @@ class Room5Obstacles(BaseRoom):
                 total_reward += reward
 
                 if step % 5 == 0:
-                    await websocket.send_json({
+                    if not await self._safe_send(websocket, {
                         "type": "step_update",
                         "episode": episode,
                         "step": step,
@@ -276,7 +296,9 @@ class Room5Obstacles(BaseRoom):
                         "buffer_size": len(self.buffer),
                         "buffer_capacity": self.buffer_size,
                         "done": done,
-                    })
+                    }):
+                        disconnected = True
+                        break
                 if done:
                     break
 
@@ -284,17 +306,23 @@ class Room5Obstacles(BaseRoom):
             episode_rewards[episode] = total_reward
             epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
 
-            await websocket.send_json({
+            if disconnected:
+                break
+            if not await self._safe_send(websocket, {
                 "type": "episode_end",
                 "episode": episode,
                 "total_reward": total_reward,
                 "steps": step,
                 "epsilon": epsilon,
-            })
+            }):
+                break
             await asyncio.sleep(0)
 
+        if disconnected:
+            return
+
         best_episode = max(episode_rewards, key=episode_rewards.get) if episode_rewards else 0
-        await websocket.send_json({
+        await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": best_episode,
             "best_reward": episode_rewards.get(best_episode, 0.0),
@@ -328,7 +356,7 @@ class Room5Obstacles(BaseRoom):
         success_rate = sum(r["success"] for r in runs) / len(runs)
         avg_reward = sum(r["reward"] for r in runs) / len(runs)
         avg_steps = sum(r["steps"] for r in runs) / len(runs)
-        await websocket.send_json({
+        await self._safe_send(websocket, {
             "type": "generalization_result",
             "success_rate": success_rate,
             "avg_reward": avg_reward,

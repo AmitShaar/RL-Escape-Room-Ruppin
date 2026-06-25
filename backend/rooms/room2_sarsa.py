@@ -2,6 +2,7 @@ import asyncio
 import random
 
 import numpy as np
+from starlette.websockets import WebSocketDisconnect
 
 from .base_room import BaseRoom
 
@@ -133,15 +134,34 @@ class Room2SARSA(BaseRoom):
     def map_info(self):
         return {"beacons": self.beacons, "slip_cells": list(self.slip_cells), "traps": list(self.traps)}
 
+    @staticmethod
+    async def _safe_send(websocket, payload):
+        """Send, returning False instead of raising if the client is gone.
+
+        A disconnect during a long training run only flips stop_requested,
+        which this loop only notices at its next check - in between, a send
+        on the now-dead socket would otherwise raise (WebSocketDisconnect,
+        or a plain RuntimeError from Starlette depending on exactly when the
+        close happens) and crash this background task with no one to catch
+        it.
+        """
+        try:
+            await websocket.send_json(payload)
+            return True
+        except (WebSocketDisconnect, RuntimeError):
+            return False
+
     async def train(self, params: dict, websocket):
         self.configure(params)
         self.q_table = np.zeros((ROWS, COLS, self.k_beacons + 1, 4))
         self.stop_requested = False
         epsilon = self.epsilon
-        await websocket.send_json({"type": "room_info", **self.map_info()})
+        if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
+            return
 
+        disconnected = False
         for episode in range(self.episodes):
-            if self.stop_requested:
+            if self.stop_requested or disconnected:
                 break
             await self.wait_if_paused()
             if self.stop_requested:
@@ -172,7 +192,7 @@ class Room2SARSA(BaseRoom):
                 total_reward += reward
 
                 if step % 5 == 0:
-                    await websocket.send_json({
+                    if not await self._safe_send(websocket, {
                         "type": "step_update",
                         "episode": episode,
                         "step": step,
@@ -182,7 +202,9 @@ class Room2SARSA(BaseRoom):
                         "done": done,
                         "total_episodes": self.episodes,
                         "epsilon": epsilon,
-                    })
+                    }):
+                        disconnected = True
+                        break
                     if self.step_delay > 0:
                         await asyncio.sleep(self.step_delay)
                 if done:
@@ -191,18 +213,24 @@ class Room2SARSA(BaseRoom):
             self.save_episode(episode, trajectory)
             epsilon = max(0.01, epsilon * self.epsilon_decay)
 
-            await websocket.send_json({
+            if disconnected:
+                break
+            if not await self._safe_send(websocket, {
                 "type": "episode_end",
                 "episode": episode,
                 "total_reward": total_reward,
                 "steps": step,
                 "outcome": "success" if done else "fail",
                 "epsilon": epsilon,
-            })
+            }):
+                break
             await asyncio.sleep(0)
 
+        if disconnected:
+            return
+
         best_episode = max(self.episode_history, key=lambda e: sum(s["reward"] for s in self.episode_history[e]))
-        await websocket.send_json({
+        await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": best_episode,
             "best_reward": sum(s["reward"] for s in self.episode_history[best_episode]),
