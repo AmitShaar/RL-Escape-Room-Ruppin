@@ -161,7 +161,10 @@ export default function GridWorld3D({
       }
 
       const actionIdx = policy ? policy[r][c] : -1
-      if (actionIdx >= 0 && !isWall && !isExit) {
+      // A hole is never an actual resting state (stepping into one
+      // redirects to start as part of that same transition), so there's
+      // no real "next move from here" to show - skip the arrow there too.
+      if (actionIdx >= 0 && !isWall && !isExit && !isHole) {
         const [ax, ay, az] = gridToWorld(r, c, 0.35)
         cells.push(
           <mesh key={`${key}-arrow`} position={[ax, ay, az]} rotation={ARROW_ROTATION[actionIdx]}>

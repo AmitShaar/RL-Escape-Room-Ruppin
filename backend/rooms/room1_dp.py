@@ -268,7 +268,13 @@ class Room1DP(BaseRoom):
 
             for r in range(ROWS):
                 for c in range(COLS):
-                    if (r, c) == EXIT or (r, c) in self.walls:
+                    # Holes are never an actual resting state: stepping into
+                    # one redirects to START as part of that same
+                    # transition (see transitions()/_bellman_value_vec()
+                    # above), so V(hole)/policy(hole) would be a vacuous
+                    # number nothing ever reads - skip it like walls/exit
+                    # rather than compute (and display) a meaningless arrow.
+                    if (r, c) == EXIT or (r, c) in self.walls or (r, c) in self.holes:
                         new_v[r, c, :] = 0.0
                         continue
                     best_value, best_action = self._bellman_value_vec(r, c, self.v_table, bm_arr)
