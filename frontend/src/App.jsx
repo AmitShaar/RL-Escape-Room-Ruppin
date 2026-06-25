@@ -9,6 +9,10 @@ import Room5_Obstacles from './rooms/Room5_Obstacles.jsx'
 
 const AVAILABLE_ROOMS = [1, 2, 3, 4, 5]
 
+function RoomSlot({ active, children }) {
+  return <div style={{ ...styles.roomSlot, display: active ? 'block' : 'none' }}>{children}</div>
+}
+
 export default function App() {
   const [activeRoom, setActiveRoom] = useState(1)
   const meta = ROOM_META[activeRoom]
@@ -25,11 +29,30 @@ export default function App() {
         <span style={styles.subtitle}>Follow חיזקי's journey through 5 rooms</span>
       </div>
       <div style={styles.content}>
-        {activeRoom === 1 && <Room1_DP />}
-        {activeRoom === 2 && <Room2_SARSA />}
-        {activeRoom === 3 && <Room3_QLearning />}
-        {activeRoom === 4 && <Room4_DQN />}
-        {activeRoom === 5 && <Room5_Obstacles />}
+        {/* All 5 rooms stay mounted permanently (just hidden via CSS when
+            inactive) instead of being conditionally rendered. Conditional
+            rendering would unmount the inactive room's component on every
+            tab switch, destroying its React state (trained results, charts,
+            replay data) and closing its WebSocket - so switching tabs to
+            show a different room mid-demo would silently wipe out training
+            you already did. This way, state (and the live connection) only
+            resets on an actual full page reload, matching what's needed to
+            present results across rooms without re-training each time. */}
+        <RoomSlot active={activeRoom === 1}>
+          <Room1_DP />
+        </RoomSlot>
+        <RoomSlot active={activeRoom === 2}>
+          <Room2_SARSA />
+        </RoomSlot>
+        <RoomSlot active={activeRoom === 3}>
+          <Room3_QLearning />
+        </RoomSlot>
+        <RoomSlot active={activeRoom === 4}>
+          <Room4_DQN />
+        </RoomSlot>
+        <RoomSlot active={activeRoom === 5}>
+          <Room5_Obstacles />
+        </RoomSlot>
       </div>
     </div>
   )
@@ -63,5 +86,10 @@ const styles = {
   content: {
     flex: 1,
     minHeight: 0,
+    position: 'relative',
+  },
+  roomSlot: {
+    height: '100%',
+    width: '100%',
   },
 }
