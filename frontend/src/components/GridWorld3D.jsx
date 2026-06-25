@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
+import CatDanger from './CatDanger.jsx'
 
 export const GRID_SIZE = 10
 
@@ -153,6 +154,10 @@ export default function GridWorld3D({
       )
       if (isHole) {
         cells.push(<HoleSwirl key={`${key}-swirl`} row={r} col={c} />)
+      }
+      if (isTrap) {
+        const [tx, ty, tz] = gridToWorld(r, c, 0.28)
+        cells.push(<CatDanger key={`${key}-cat`} position={[tx, ty, tz]} />)
       }
 
       const actionIdx = policy ? policy[r][c] : -1

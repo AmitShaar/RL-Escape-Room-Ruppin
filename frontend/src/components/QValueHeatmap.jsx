@@ -39,14 +39,15 @@ const LEGEND_LABELS = {
   start: 'Start',
   exit: 'Exit (goal)',
   bonus: 'Reward (+)',
-  trap: 'Danger (−)',
+  trap: '🐱 Cat Danger (−)',
   hole: 'Black hole (resets to start)',
   wall: 'Wall',
   vent: 'Slippery',
 }
 
-export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap' }) {
+export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {} }) {
   const [hover, setHover] = useState(null)
+  const labels = useMemo(() => ({ ...LEGEND_LABELS, ...labelOverrides }), [labelOverrides])
 
   const { min, max } = useMemo(() => {
     let mn = Infinity
@@ -110,7 +111,7 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
       {hover && (
         <div style={styles.tooltip}>
           ({hover.r}, {hover.c}) → {hover.v.toFixed(3)}
-          {hover.kind !== 'normal' ? ` [${LEGEND_LABELS[hover.kind] ?? hover.kind}]` : ''}
+          {hover.kind !== 'normal' ? ` [${labels[hover.kind] ?? hover.kind}]` : ''}
         </div>
       )}
       <div style={styles.gradientLegend}>
@@ -126,7 +127,7 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
           {presentKinds.map((kind) => (
             <span key={kind} style={styles.legendItem}>
               <span style={{ ...styles.legendSwatch, background: KIND_COLORS[kind] }} />
-              {LEGEND_LABELS[kind]}
+              {labels[kind]}
             </span>
           ))}
         </div>

@@ -25,7 +25,7 @@ const SCHEMA = [
   { key: 'gamma', label: 'γ (gamma)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
   { key: 'treat_reward', label: '🦴 Treat reward', min: 1, max: 20, step: 1 },
-  { key: 'trap_reward', label: '⚠️ Danger penalty (trap)', min: -30, max: -1, step: 1 },
+  { key: 'trap_reward', label: '🐱 Cat danger penalty', min: -30, max: -1, step: 1 },
   { key: 'bone_reward', label: '🦴 Bone reward (exit)', min: 10, max: 200, step: 10 },
   { key: 'replay_episodes', label: 'Episodes (replay)', min: 1, max: 10, step: 1 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 500, step: 50 },

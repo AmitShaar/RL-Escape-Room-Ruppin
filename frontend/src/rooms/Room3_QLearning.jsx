@@ -285,6 +285,7 @@ export default function Room3_QLearning() {
             table={qHeatmap}
             special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9] }}
             label="max Q(s,a) Heatmap"
+            labelOverrides={{ trap: 'Shark patrol (−)' }}
           />
         </div>
       </main>
