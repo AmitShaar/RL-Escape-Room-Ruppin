@@ -32,6 +32,7 @@ const KIND_COLORS = {
   bonus: '#ff66ff',
   start: '#3388ff',
   exit: '#00ffaa',
+  vent: '#2a7a8a',
 }
 
 const LEGEND_LABELS = {

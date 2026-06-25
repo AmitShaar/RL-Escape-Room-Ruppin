@@ -26,6 +26,24 @@ Open the printed Vite URL (default `http://localhost:5173`). Each room has its o
 
 ---
 
+## Reading the Q/V-value heatmap
+
+Rooms 1-3 show a 10×10 heatmap next to the 3D scene. Most cells are colored by a **gradient**: dark navy blue is the lowest learned value anywhere in the table, orange/gold is the highest, and everything in between is a linear blend. That gradient is the *only* thing color means for a plain cell - there's no inherent meaning to "blue" or "orange" beyond "low" and "high" relative to this specific table right now.
+
+A handful of cells instead get a **fixed marker color**, regardless of their value, so they stay identifiable no matter how the gradient happens to fall that run:
+
+| Color | Meaning |
+|---|---|
+| 🔵 blue | Start |
+| 🟢 green | Exit (goal) |
+| 🟣 magenta/pink | Reward (+) - a beacon / treat / artifact, depending on the room |
+| 🔴 dark red | Danger (−) - a trap, or a shark patrol cell |
+| 🟦 teal | Slippery (vent) - the chosen action has a chance of being overridden by a random one here |
+
+Hovering any cell shows its exact value and, for a marker cell, which one it is.
+
+---
+
 ## Room 1 — The Mapped Yard (Dynamic Programming / Value Iteration)
 
 **State space.** `s = (row, col)` on a 10×10 grid — 100 states. The transition model (including thermal-vent slip probabilities and electric-trap resets) is fully known and given to the planner; this is the one room that is **not** model-free.
