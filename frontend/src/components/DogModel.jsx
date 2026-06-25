@@ -2,22 +2,34 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const FUR = '#E8A87C'
-const BELLY = '#F5C99B'
-const DARK = '#3D2B1F'
-const EYE_COLOR = '#1A0A00'
+const FUR = '#1C9C94'
+const BELLY = '#5FCFC4'
+const DARK = '#0B2E2C'
+const EYE_COLOR = '#0B2E2C'
 const EYE_SHINE = '#FFFFFF'
-const ACCENT = '#C4845A' // ears, paws — darker than the main coat
+const ACCENT = '#107D78' // ears, paws — darker than the main coat
+const EDGE_COLOR = '#FFFFFF' // low-poly facet outline, like the puzzle reference
 const HELMET_GLASS = '#88CCFF'
 const HELMET_RIM = '#4499DD'
 
 const TRAIL_LENGTH = 8
 
-function Part({ geometry, color, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] }) {
+// Low-poly "gem" look: flat-shaded faceted geometry plus a white edge
+// outline traced from the geometry itself (rather than a full wireframe,
+// which would also draw distracting internal diagonals at higher detail).
+function Part({ geometry, color, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1], edges = true }) {
+  const edgesGeo = useMemo(() => (edges ? new THREE.EdgesGeometry(geometry) : null), [geometry, edges])
   return (
-    <mesh geometry={geometry} position={position} rotation={rotation} scale={scale}>
-      <meshStandardMaterial color={color} roughness={0.65} metalness={0.05} />
-    </mesh>
+    <group position={position} rotation={rotation} scale={scale}>
+      <mesh geometry={geometry}>
+        <meshStandardMaterial color={color} roughness={0.6} metalness={0.05} flatShading />
+      </mesh>
+      {edgesGeo && (
+        <lineSegments geometry={edgesGeo}>
+          <lineBasicMaterial color={EDGE_COLOR} />
+        </lineSegments>
+      )}
+    </group>
   )
 }
 
@@ -46,35 +58,40 @@ export default function DogModel({ position = [0, 0.4, 0], isMoving = null }) {
 
   const geo = useMemo(
     () => ({
-      body: new THREE.SphereGeometry(0.42, 16, 12),
-      head: new THREE.SphereGeometry(0.3, 16, 12),
-      snout: new THREE.SphereGeometry(0.14, 12, 8),
-      nose: new THREE.SphereGeometry(0.055, 8, 6),
-      eye: new THREE.SphereGeometry(0.055, 8, 6),
-      eyeShine: new THREE.SphereGeometry(0.02, 6, 4),
-      earBase: new THREE.SphereGeometry(0.1, 8, 6),
-      earTip: new THREE.SphereGeometry(0.07, 8, 6),
+      body: new THREE.IcosahedronGeometry(0.42, 1),
+      head: new THREE.IcosahedronGeometry(0.3, 1),
+      snout: new THREE.IcosahedronGeometry(0.14, 0),
+      nose: new THREE.IcosahedronGeometry(0.055, 0),
+      eye: new THREE.IcosahedronGeometry(0.055, 0),
+      eyeShine: new THREE.IcosahedronGeometry(0.02, 0),
+      earBase: new THREE.IcosahedronGeometry(0.1, 0),
+      earTip: new THREE.IcosahedronGeometry(0.07, 0),
       tailSeg: [
-        new THREE.SphereGeometry(0.09, 8, 6),
-        new THREE.SphereGeometry(0.07, 8, 6),
-        new THREE.SphereGeometry(0.05, 8, 6),
+        new THREE.IcosahedronGeometry(0.09, 0),
+        new THREE.IcosahedronGeometry(0.07, 0),
+        new THREE.IcosahedronGeometry(0.05, 0),
       ],
       leg: { FL: null, FR: null, BL: null, BR: null }, // built below per-length
-      paw: new THREE.SphereGeometry(0.1, 10, 8),
+      paw: new THREE.IcosahedronGeometry(0.1, 0),
       helmetGlass: new THREE.SphereGeometry(0.38, 24, 20),
-      helmetRim: new THREE.TorusGeometry(0.32, 0.03, 12, 40),
+      helmetRim: new THREE.TorusGeometry(0.32, 0.03, 6, 16),
     }),
     []
   )
 
   const legGeo = useMemo(
     () => ({
-      FL: new THREE.CylinderGeometry(0.08, 0.07, LEG_FRONT_LEN, 10),
-      FR: new THREE.CylinderGeometry(0.08, 0.07, LEG_FRONT_LEN, 10),
-      BL: new THREE.CylinderGeometry(0.08, 0.07, LEG_BACK_LEN, 10),
-      BR: new THREE.CylinderGeometry(0.08, 0.07, LEG_BACK_LEN, 10),
+      FL: new THREE.CylinderGeometry(0.08, 0.07, LEG_FRONT_LEN, 6),
+      FR: new THREE.CylinderGeometry(0.08, 0.07, LEG_FRONT_LEN, 6),
+      BL: new THREE.CylinderGeometry(0.08, 0.07, LEG_BACK_LEN, 6),
+      BR: new THREE.CylinderGeometry(0.08, 0.07, LEG_BACK_LEN, 6),
     }),
     []
+  )
+
+  const legEdgesGeo = useMemo(
+    () => Object.fromEntries(Object.entries(legGeo).map(([key, g]) => [key, new THREE.EdgesGeometry(g)])),
+    [legGeo]
   )
 
   useEffect(() => {
@@ -141,11 +158,11 @@ export default function DogModel({ position = [0, 0.4, 0], isMoving = null }) {
         <Part geometry={geo.body} color={FUR} scale={[1, 0.75, 1]} />
         <Part geometry={geo.head} color={FUR} position={headPos} />
         <Part geometry={geo.snout} color={BELLY} position={[0, headPos[1] - 0.04, headPos[2] + 0.23]} scale={[1, 1, 0.75]} />
-        <Part geometry={geo.nose} color={DARK} position={[0, headPos[1] - 0.04, headPos[2] + 0.35]} />
-        <Part geometry={geo.eye} color={EYE_COLOR} position={[-0.12, headPos[1] + 0.08, headPos[2] + 0.17]} />
-        <Part geometry={geo.eye} color={EYE_COLOR} position={[0.12, headPos[1] + 0.08, headPos[2] + 0.17]} />
-        <Part geometry={geo.eyeShine} color={EYE_SHINE} position={[-0.1, headPos[1] + 0.1, headPos[2] + 0.205]} />
-        <Part geometry={geo.eyeShine} color={EYE_SHINE} position={[0.1, headPos[1] + 0.1, headPos[2] + 0.205]} />
+        <Part geometry={geo.nose} color={DARK} position={[0, headPos[1] - 0.04, headPos[2] + 0.35]} edges={false} />
+        <Part geometry={geo.eye} color={EYE_COLOR} position={[-0.12, headPos[1] + 0.08, headPos[2] + 0.17]} edges={false} />
+        <Part geometry={geo.eye} color={EYE_COLOR} position={[0.12, headPos[1] + 0.08, headPos[2] + 0.17]} edges={false} />
+        <Part geometry={geo.eyeShine} color={EYE_SHINE} position={[-0.1, headPos[1] + 0.1, headPos[2] + 0.205]} edges={false} />
+        <Part geometry={geo.eyeShine} color={EYE_SHINE} position={[0.1, headPos[1] + 0.1, headPos[2] + 0.205]} edges={false} />
 
         <Part geometry={geo.earBase} color={ACCENT} position={[-0.2, headPos[1] + 0.2, headPos[2] - 0.05]} />
         <Part geometry={geo.earTip} color={ACCENT} position={[-0.25, headPos[1] + 0.3, headPos[2] - 0.01]} />
@@ -159,9 +176,14 @@ export default function DogModel({ position = [0, 0.4, 0], isMoving = null }) {
         </group>
 
         {LEGS.map((leg, i) => (
-          <mesh key={leg.key} ref={legRefs[i]} geometry={legGeo[leg.key]} position={[leg.x, -leg.len, leg.z]}>
-            <meshStandardMaterial color={FUR} roughness={0.65} metalness={0.05} />
-          </mesh>
+          <group key={leg.key} ref={legRefs[i]} position={[leg.x, -leg.len, leg.z]}>
+            <mesh geometry={legGeo[leg.key]}>
+              <meshStandardMaterial color={FUR} roughness={0.6} metalness={0.05} flatShading />
+            </mesh>
+            <lineSegments geometry={legEdgesGeo[leg.key]}>
+              <lineBasicMaterial color={EDGE_COLOR} />
+            </lineSegments>
+          </group>
         ))}
         {LEGS.map((leg) => (
           <Part
@@ -186,7 +208,7 @@ export default function DogModel({ position = [0, 0.4, 0], isMoving = null }) {
           />
         </mesh>
         <mesh geometry={geo.helmetRim} position={helmetCenter} rotation={[Math.PI / 2, 0, 0]}>
-          <meshStandardMaterial color={HELMET_RIM} metalness={0.8} roughness={0.2} />
+          <meshStandardMaterial color={HELMET_RIM} metalness={0.8} roughness={0.2} flatShading />
         </mesh>
       </group>
 
