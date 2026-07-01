@@ -4,6 +4,8 @@ import HyperparamPanel from '../components/HyperparamPanel.jsx'
 import TrainingControls from '../components/TrainingControls.jsx'
 import RewardChart from '../components/RewardChart.jsx'
 import LossChart from '../components/LossChart.jsx'
+import EpisodeReplay from '../components/EpisodeReplay.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import ContinuousWorld3D, { continuousToWorld } from '../components/ContinuousWorld3D.jsx'
 import DogModel from '../components/DogModel.jsx'
@@ -44,6 +46,9 @@ export default function Room5_Storm() {
   const [bufferFill, setBufferFill] = useState({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
   const [liveAgentXY, setLiveAgentXY] = useState(null)
   const [liveVelocity, setLiveVelocity] = useState([0, 0])
+  const [trajectory, setTrajectory] = useState([])
+  const [agentXY, setAgentXY] = useState([1, 1])
+  const [replayStepIdx, setReplayStepIdx] = useState(0)
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
   const [genResult, setGenResult] = useState(null)
@@ -75,6 +80,9 @@ export default function Room5_Storm() {
       setLiveAgentXY(null)
       setBestReward(msg.best_reward)
       setBestEpisode(msg.best_episode)
+      sendRef.current({ type: 'get_replay', episode: msg.best_episode })
+    } else if (msg.type === 'replay_data') {
+      setTrajectory(msg.trajectory || [])
     } else if (msg.type === 'generalization_result') {
       setGenResult(msg)
       setGenLoading(false)
@@ -85,6 +93,9 @@ export default function Room5_Storm() {
       setBufferFill({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
       setLiveAgentXY(null)
       setLiveVelocity([0, 0])
+      setTrajectory([])
+      setAgentXY([1, 1])
+      setReplayStepIdx(0)
       setBestReward(null)
       setBestEpisode(null)
       setGenResult(null)
@@ -120,7 +131,22 @@ export default function Room5_Storm() {
     send({ type: 'test_generalization' })
   }
 
-  const displayXY = liveAgentXY || [special.start[0], special.start[1]]
+  const onReplayStep = useCallback(
+    (step) => {
+      const point = trajectory[step]
+      setAgentXY(point ? point.pos : [1, 1])
+      setReplayStepIdx(step)
+    },
+    [trajectory]
+  )
+
+  const stepReward = trajectory[replayStepIdx]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStepIdx + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStepIdx]
+  )
+
+  const displayXY = liveAgentXY || agentXY
   const displayVelocity = liveAgentXY ? liveVelocity : [0, 0]
   const displayObstacles = liveAgentXY ? liveObstacles : special.obstacles
   const dogPos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
@@ -160,10 +186,11 @@ export default function Room5_Storm() {
 
         <RewardChart data={episodeHistory} xKey="episode" yKey="total_reward" title="Reward per episode" />
         <LossChart data={lossHistory} />
+        <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
       </aside>
 
       <main style={styles.main}>
-        <div style={styles.sceneWrap}>
+        <div style={{ ...styles.sceneWrap, position: 'relative' }}>
           <Scene3D>
             <ContinuousWorld3D
               agentPos={displayXY}
@@ -174,6 +201,14 @@ export default function Room5_Storm() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
+          {status === 'complete' && trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStepIdx}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
+          )}
         </div>
       </main>
     </div>
