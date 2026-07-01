@@ -116,9 +116,9 @@ npm run dev
 
 ![חדר 4 - DQN](docs/screenshots/room4.png)
 
-> **הדגמת אימון — חיזקי לומד DQN:**
+> **הדגמת אימון — חיזקי לומד לנווט בסביבה רציפה:**
 
-![Room 4 DQN Training](https://github.com/AmitShaar/RL-Escape-Room-Ruppin/raw/main/docs/videos/room4.webm)
+https://github.com/user-attachments/assets/11a22889-7612-406a-83b7-983e834e7597
 
 - **מצבים:** רציפים - מיקום ומהירות (x, y, vx, vy), לא טבלה.
 - **פעולות:** 9 כיווני דחיפה (שילובים של שמאל/ימין/בלי × מעלה/מטה/בלי).
