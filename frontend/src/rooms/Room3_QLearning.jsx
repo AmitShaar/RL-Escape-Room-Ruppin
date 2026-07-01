@@ -13,6 +13,7 @@ import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
 import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
+import XMark3D from '../components/XMark3D.jsx'
 
 // Trimmed to the 6 controls that matter day-to-day; fragment/shark counts
 // and reward values plus epsilon_decay stay fixed at sensible defaults
@@ -267,6 +268,10 @@ export default function Room3_QLearning() {
               sharkPos={sharkPos}
             />
             <DogModel position={dogPos} />
+            {special.shark_patrol.map(([r, c], i) => {
+              const [x, , z] = gridToWorld(r, c, 0.35)
+              return <XMark3D key={`xmark-${i}`} position={[x, 0.35, z]} />
+            })}
             {bestPortal && (
               <mesh position={gridToWorld(bestPortal[0], bestPortal[1], 0.45)}>
                 <sphereGeometry args={[0.22, 14, 10]} />
