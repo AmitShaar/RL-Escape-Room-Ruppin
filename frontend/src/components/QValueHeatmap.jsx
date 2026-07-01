@@ -103,7 +103,11 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
           row.map((v, c) => {
             const kind = cellKind(r, c, specialSets)
             const t = max > min ? (v - min) / (max - min) : 0
-            const bg = KIND_COLORS[kind] || lerpColor(t)
+            // Square-root scaling: compresses the bright-orange top end and
+            // stretches the dark end, so a well-converged V-table (where all
+            // values cluster near the max) still shows visible differences
+            // between cells close to and far from the exit.
+            const bg = KIND_COLORS[kind] || lerpColor(Math.sqrt(t))
             return (
               <div
                 key={`${r}-${c}`}
