@@ -268,10 +268,10 @@ export default function Room3_QLearning() {
               sharkPos={null}
             />
             <DogModel position={dogPos} />
-            {special.shark_patrol.map(([r, c], i) => {
-              const [x, , z] = gridToWorld(r, c, 0.35)
-              return <XMark3D key={`xmark-${i}`} position={[x, 0.35, z]} />
-            })}
+            {sharkPos && (() => {
+              const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.35)
+              return <XMark3D position={[sx, 0.35, sz]} />
+            })()}
             {bestPortal && (
               <mesh position={gridToWorld(bestPortal[0], bestPortal[1], 0.45)}>
                 <sphereGeometry args={[0.22, 14, 10]} />
