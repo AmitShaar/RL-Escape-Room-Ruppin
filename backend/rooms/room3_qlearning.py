@@ -222,7 +222,7 @@ class Room3QLearning(BaseRoom):
             if done:
                 break
 
-        return trajectory, total_reward, step, portal_discovered, done, disconnected
+        return trajectory, total_reward, step, portal_discovered, done, disconnected, portal_pos
 
     async def _run_episode_sarsa(self, epsilon, episode):
         row, col, bitmask = START[0], START[1], 0
@@ -259,6 +259,7 @@ class Room3QLearning(BaseRoom):
         epsilon = self.epsilon
         portal_first_episode = None
         episode_rewards_q = {}
+        episode_portals = {}   # portal position for each episode
 
         if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
             return
@@ -270,13 +271,14 @@ class Room3QLearning(BaseRoom):
             if self.stop_requested:
                 break
 
-            traj_q, reward_q, steps_q, portal_discovered, success_q, disconnected = await self._run_episode_qlearning(
+            traj_q, reward_q, steps_q, portal_discovered, success_q, disconnected, portal_pos = await self._run_episode_qlearning(
                 epsilon, episode, websocket, self.episodes
             )
             if disconnected:
                 return
             if portal_discovered and portal_first_episode is None:
                 portal_first_episode = episode
+            episode_portals[episode] = list(portal_pos)
             self.save_episode(episode, traj_q)
             episode_rewards_q[episode] = reward_q
 
@@ -298,6 +300,17 @@ class Room3QLearning(BaseRoom):
             await asyncio.sleep(0)
 
         best_episode = max(episode_rewards_q, key=episode_rewards_q.get) if episode_rewards_q else 0
+        best_portal = episode_portals.get(best_episode)
+        # The portal teleports 3-5 steps diagonally toward exit; use d=4 as
+        # the representative midpoint destination for the heatmap overlay.
+        if best_portal:
+            d = 4
+            portal_dest = [
+                min(ROWS - 1, best_portal[0] + d),
+                min(COLS - 1, best_portal[1] + d),
+            ]
+        else:
+            portal_dest = None
         await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": best_episode,
@@ -305,6 +318,8 @@ class Room3QLearning(BaseRoom):
             "policy": np.argmax(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "q_values": np.max(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "portal_first_episode": portal_first_episode,
+            "best_portal": best_portal,
+            "best_portal_dest": portal_dest,
             **self.map_info(),
         })
 

@@ -72,6 +72,8 @@ export default function Room3_QLearning() {
   const [liveAgentPos, setLiveAgentPos] = useState(null)
   const [liveSharkPos, setLiveSharkPos] = useState(null)
   const [portalFirstEpisode, setPortalFirstEpisode] = useState(null)
+  const [bestPortal, setBestPortal] = useState(null)
+  const [bestPortalDest, setBestPortalDest] = useState(null)
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
   const [liveEpisode, setLiveEpisode] = useState(null)
@@ -109,6 +111,8 @@ export default function Room3_QLearning() {
       setQHeatmap(msg.q_values)
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
       setPortalFirstEpisode(msg.portal_first_episode)
+      setBestPortal(msg.best_portal || null)
+      setBestPortalDest(msg.best_portal_dest || null)
       setStatus('complete')
       setLiveAgentPos(null)
       setLiveSharkPos(null)
@@ -130,6 +134,8 @@ export default function Room3_QLearning() {
       setLiveAgentPos(null)
       setLiveSharkPos(null)
       setPortalFirstEpisode(null)
+      setBestPortal(null)
+      setBestPortalDest(null)
       setBestReward(null)
       setBestEpisode(null)
       setLiveEpisode(null)
@@ -261,6 +267,18 @@ export default function Room3_QLearning() {
               sharkPos={sharkPos}
             />
             <DogModel position={dogPos} />
+            {bestPortal && (
+              <mesh position={gridToWorld(bestPortal[0], bestPortal[1], 0.45)}>
+                <sphereGeometry args={[0.22, 14, 10]} />
+                <meshStandardMaterial color="#aa44ff" emissive="#aa44ff" emissiveIntensity={1.5} transparent opacity={0.85} />
+              </mesh>
+            )}
+            {bestPortalDest && (
+              <mesh position={gridToWorld(bestPortalDest[0], bestPortalDest[1], 0.45)}>
+                <sphereGeometry args={[0.18, 14, 10]} />
+                <meshStandardMaterial color="#dd88ff" emissive="#dd88ff" emissiveIntensity={1.0} transparent opacity={0.7} />
+              </mesh>
+            )}
           </Scene3D>
           <OutcomeFlash outcome={flashOutcome} />
           {status === 'training' && (
@@ -283,7 +301,7 @@ export default function Room3_QLearning() {
         <div style={styles.heatmapWrap}>
           <QValueHeatmap
             table={qHeatmap}
-            special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9] }}
+            special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9], portal: bestPortal, portalDest: bestPortalDest }}
             label="max Q(s,a) Heatmap"
             labelOverrides={{ trap: 'Shark patrol (−)' }}
           />

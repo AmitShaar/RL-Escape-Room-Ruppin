@@ -14,6 +14,8 @@ function cellKind(r, c, special) {
   const key = `${r},${c}`
   if (special.start && special.start[0] === r && special.start[1] === c) return 'start'
   if (special.exit && special.exit[0] === r && special.exit[1] === c) return 'exit'
+  if (special.portal && special.portal[0] === r && special.portal[1] === c) return 'portal'
+  if (special.portalDest && special.portalDest[0] === r && special.portalDest[1] === c) return 'portalDest'
   if (special.walls?.has(key)) return 'wall'
   if (special.holes?.has(key)) return 'hole'
   if (special.traps?.has(key)) return 'trap'
@@ -33,6 +35,8 @@ const KIND_COLORS = {
   start: '#3388ff',
   exit: '#00ffaa',
   vent: '#2a7a8a',
+  portal: '#aa44ff',
+  portalDest: '#dd88ff',
 }
 
 const LEGEND_LABELS = {
@@ -43,6 +47,8 @@ const LEGEND_LABELS = {
   hole: 'Black hole (resets to start)',
   wall: 'Wall',
   vent: 'Slippery',
+  portal: 'Portal (entry)',
+  portalDest: 'Portal (landing)',
 }
 
 export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {}, columns = 10 }) {
@@ -84,8 +90,10 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
     if (specialSets.holes.size) kinds.add('hole')
     if (specialSets.walls.size) kinds.add('wall')
     if (specialSets.vents.size) kinds.add('vent')
+    if (special.portal) kinds.add('portal')
+    if (special.portalDest) kinds.add('portalDest')
     return [...kinds]
-  }, [special.start, special.exit, specialSets])
+  }, [special.start, special.exit, special.portal, special.portalDest, specialSets])
 
   return (
     <div style={styles.wrap}>
