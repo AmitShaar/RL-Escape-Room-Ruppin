@@ -236,6 +236,10 @@ class Room2SARSA(BaseRoom):
             "best_reward": sum(s["reward"] for s in self.episode_history[best_episode]),
             "policy": np.argmax(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "q_values": np.max(self.q_table[:, :, 0, :], axis=-1).tolist(),
+            "q_values_all": [
+                np.max(self.q_table[:, :, v, :], axis=-1).tolist()
+                for v in range(self.k_beacons + 1)
+            ],
             **self.map_info(),
         })
 

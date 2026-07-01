@@ -50,6 +50,7 @@ export default function Room2_SARSA() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [qHeatmap, setQHeatmap] = useState(ZERO_TABLE)
+  const [qHeatmapAll, setQHeatmapAll] = useState(null)   // all visited-count slices
   const [policy, setPolicy] = useState(EMPTY_POLICY)
   const [special, setSpecial] = useState({ beacons: [], slip_cells: [], traps: [] })
   const [episodeHistory, setEpisodeHistory] = useState([])
@@ -87,6 +88,7 @@ export default function Room2_SARSA() {
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
       setQHeatmap(msg.q_values)
+      if (msg.q_values_all) setQHeatmapAll(msg.q_values_all)
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
       setStatus('complete')
       setLiveAgentPos(null)
@@ -98,6 +100,7 @@ export default function Room2_SARSA() {
       setTrajectory(msg.trajectory || [])
     } else if (msg.type === 'reset_complete') {
       setQHeatmap(ZERO_TABLE)
+      setQHeatmapAll(null)
       setPolicy(EMPTY_POLICY)
       setEpisodeHistory([])
       setTrajectory([])
@@ -162,6 +165,16 @@ export default function Room2_SARSA() {
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
 
+  // During replay: show the Q-slice matching the current beacon-collection
+  // state so the heatmap updates live as Hizki collects beacons.
+  const displayedQHeatmap = useMemo(() => {
+    if (qHeatmapAll && qHeatmapAll[visitedCount]) return qHeatmapAll[visitedCount]
+    return qHeatmap
+  }, [qHeatmapAll, visitedCount, qHeatmap])
+  const heatmapLabel = qHeatmapAll
+    ? `max Q(s,a) — ${visitedCount} / ${qHeatmapAll.length - 1} beacons collected`
+    : 'max Q(s,a) Heatmap'
+
   // Live-updating reward readout while scrubbing/playing the best-episode
   // replay: the step reward at the current frame, plus the running sum
   // from the start of the trajectory up to (and including) that frame.
@@ -217,9 +230,9 @@ export default function Room2_SARSA() {
         </div>
         <div style={styles.heatmapWrap}>
           <QValueHeatmap
-            table={qHeatmap}
+            table={displayedQHeatmap}
             special={{ vents: special.slip_cells, traps: special.traps, bonuses: special.beacons, start: [0, 0], exit: [9, 9] }}
-            label="max Q(s,a) Heatmap"
+            label={heatmapLabel}
           />
         </div>
       </main>
