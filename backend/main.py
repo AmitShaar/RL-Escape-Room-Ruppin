@@ -106,11 +106,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    # Default ws_ping_timeout (20s) can trip during long DQN training runs:
-    # heavy torch computation between awaits can occasionally delay the
-    # pong response past that window, closing the connection mid-training.
-    # Running via `python main.py` (instead of `uvicorn main:app`) picks up
-    # these longer timeouts.
-    uvicorn.run(app, host="0.0.0.0", port=8000, ws_ping_interval=20, ws_ping_timeout=120)
+    # PORT is set by Railway in production; falls back to 8000 locally.
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, ws_ping_interval=20, ws_ping_timeout=120)
