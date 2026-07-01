@@ -265,7 +265,7 @@ export default function Room3_QLearning() {
               policy={status === 'complete' ? policy : null}
               artifacts={special.artifacts}
               collectedMask={collectedMask}
-              sharkPos={sharkPos}
+              sharkPos={null}
             />
             <DogModel position={dogPos} />
             {special.shark_patrol.map(([r, c], i) => {
