@@ -51,7 +51,7 @@ const LEGEND_LABELS = {
   portalDest: 'Portal (landing)',
 }
 
-export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {}, columns = 10 }) {
+export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {}, columns = 10, colorPow = 1 }) {
   const [hover, setHover] = useState(null)
   const labels = useMemo(() => ({ ...LEGEND_LABELS, ...labelOverrides }), [labelOverrides])
 
@@ -103,12 +103,10 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
           row.map((v, c) => {
             const kind = cellKind(r, c, specialSets)
             const t = max > min ? (v - min) / (max - min) : 0
-            // Cubic scaling (t^3): makes values near the minimum MUCH darker
-            // and values near the maximum nearly the same bright orange, so
-            // a well-converged V-table shows a clear dark-to-bright gradient
-            // from cells far from the exit to cells close to it.
-            // t=0.5 → 0.125 (dark), t=0.8 → 0.512 (medium), t=1 → 1 (bright).
-            const bg = KIND_COLORS[kind] || lerpColor(Math.pow(t, 3))
+            // colorPow lets each room tune the gradient curve:
+            //   1 (default) = linear, natural spread (Rooms 2/3/6)
+            //   2           = quadratic, more contrast on converged V-tables (Room 1)
+            const bg = KIND_COLORS[kind] || lerpColor(colorPow === 1 ? t : Math.pow(t, colorPow))
             return (
               <div
                 key={`${r}-${c}`}

@@ -206,6 +206,7 @@ export default function Room1_DP() {
             table={vTable}
             special={{ ...special, bonuses: special.treats, start: [0, 0], exit: [9, 9] }}
             label="V(s) Heatmap"
+            colorPow={2}
           />
         </div>
       </main>
