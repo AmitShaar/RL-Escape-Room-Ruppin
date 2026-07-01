@@ -247,7 +247,7 @@ class Room5Storm(BaseRoom):
             obstacles = self._make_obstacles()
             total_reward = 0.0
             step = 0
-            trajectory = [{"pos": [state[0], state[1]], "reward": 0.0}]
+            trajectory = [{"pos": [state[0], state[1]], "reward": 0.0, "obstacles": [[o[0], o[1]] for o in obstacles]}]
 
             for step in range(self.max_steps):
                 obstacles = self._step_obstacles(obstacles)
@@ -266,7 +266,11 @@ class Room5Storm(BaseRoom):
 
                 state = next_state
                 total_reward += reward
-                trajectory.append({"pos": [state[0], state[1]], "reward": reward})
+                trajectory.append({
+                    "pos": [state[0], state[1]],
+                    "reward": reward,
+                    "obstacles": [[o[0], o[1]] for o in obstacles],
+                })
 
                 if step % 5 == 0:
                     if not await self._safe_send(websocket, {

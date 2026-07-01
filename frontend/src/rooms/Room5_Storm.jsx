@@ -96,6 +96,7 @@ export default function Room5_Storm() {
       setTrajectory([])
       setAgentXY([1, 1])
       setReplayStepIdx(0)
+      setReplayObstacles(null)
       setBestReward(null)
       setBestEpisode(null)
       setGenResult(null)
@@ -131,11 +132,14 @@ export default function Room5_Storm() {
     send({ type: 'test_generalization' })
   }
 
+  const [replayObstacles, setReplayObstacles] = useState(null)
+
   const onReplayStep = useCallback(
     (step) => {
       const point = trajectory[step]
       setAgentXY(point ? point.pos : [1, 1])
       setReplayStepIdx(step)
+      if (point?.obstacles) setReplayObstacles(point.obstacles)
     },
     [trajectory]
   )
@@ -148,7 +152,10 @@ export default function Room5_Storm() {
 
   const displayXY = liveAgentXY || agentXY
   const displayVelocity = liveAgentXY ? liveVelocity : [0, 0]
-  const displayObstacles = liveAgentXY ? liveObstacles : special.obstacles
+  // Priority: live training obstacles > replay obstacles (from saved trajectory) > preview
+  const displayObstacles = liveAgentXY
+    ? liveObstacles
+    : (replayObstacles || special.obstacles)
   const dogPos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
   const bufferPct = bufferFill.capacity ? Math.min(100, (bufferFill.size / bufferFill.capacity) * 100) : 0
 
