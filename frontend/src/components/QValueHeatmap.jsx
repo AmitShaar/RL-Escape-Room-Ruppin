@@ -45,7 +45,7 @@ const LEGEND_LABELS = {
   vent: 'Slippery',
 }
 
-export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {} }) {
+export default function QValueHeatmap({ table, special = {}, onCellClick, label = 'Value Heatmap', labelOverrides = {}, columns = 10 }) {
   const [hover, setHover] = useState(null)
   const labels = useMemo(() => ({ ...LEGEND_LABELS, ...labelOverrides }), [labelOverrides])
 
@@ -90,7 +90,7 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
   return (
     <div style={styles.wrap}>
       <h4 style={styles.title}>{label}</h4>
-      <div style={styles.grid}>
+      <div style={{ ...styles.grid, gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {table.map((row, r) =>
           row.map((v, c) => {
             const kind = cellKind(r, c, specialSets)

@@ -22,6 +22,7 @@ import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
 import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
+import QValueHeatmap from '../components/QValueHeatmap.jsx'
 
 // Mirrors backend/rooms/room6_curriculum.py's STAGES - needed on the
 // frontend too, to know where each stage's episodes fall in the global
@@ -299,6 +300,14 @@ export default function Room6_Curriculum() {
             />
           )}
         </div>
+        <div style={styles.heatmapWrap}>
+          <QValueHeatmap
+            table={qHeatmap}
+            columns={size}
+            special={{ walls: special.walls, start: special.start, exit: special.exit }}
+            label={`Q(s,a) Heatmap — Stage ${stageIdx + 1} (${size}×${size})`}
+          />
+        </div>
       </main>
     </div>
   )
@@ -384,6 +393,11 @@ const styles = {
     flex: 1,
     display: 'flex',
     minWidth: 0,
+  },
+  heatmapWrap: {
+    width: '280px',
+    padding: '14px',
+    overflowY: 'auto',
   },
   sceneWrap: {
     flex: 1,
