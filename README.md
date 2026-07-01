@@ -118,7 +118,7 @@ npm run dev
 
 > **הדגמת אימון — חיזקי לומד לנווט בסביבה רציפה:**
 
-https://github.com/user-attachments/assets/efe4974e-2896-4838-8c0b-4d1cc81bf31d
+https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
 - **מצבים:** רציפים - מיקום ומהירות (x, y, vx, vy), לא טבלה.
 - **פעולות:** 9 כיווני דחיפה (שילובים של שמאל/ימין/בלי × מעלה/מטה/בלי).
