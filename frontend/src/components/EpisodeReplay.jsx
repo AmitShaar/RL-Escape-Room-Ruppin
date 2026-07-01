@@ -17,7 +17,7 @@ export default function EpisodeReplay({
 }) {
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(1)
+  const [speed, setSpeed] = useState(5)
   const [outcome, setOutcome] = useState(null)
   const intervalRef = useRef(null)
   const outcomeTimeoutRef = useRef(null)
