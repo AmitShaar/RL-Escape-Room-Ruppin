@@ -40,6 +40,8 @@ frontend/
 
 docs/
   screenshots/                 # תמונת מסך אחת לכל חדר (room1.png ... room5.png)
+  videos/
+    room4.webm                 # סרטון הדגמה לחדר 4 (DQN)
 
 README.md
 ```
@@ -78,30 +80,59 @@ npm run dev
 ## מבנה המצבים ופונקציית התגמולים
 
 ### חדר 1 - Value Iteration
+
+![חדר 1 - Value Iteration](docs/screenshots/room1.png)
+
 - **מצבים:** מיקום ברשת 10×10 + אילו פינוקים (treats) כבר נאספו. בלוח: קירות, תאים חלקלקים (vents), מלכודות-חתול (Cat Danger), חורים שחורים (מחזירים להתחלה בלי עונש), פינוקים, יציאה.
 - **פעולות:** up / down / left / right, עם הסתברות החלקה (slip_prob) על תאים חלקלקים.
 - **תגמולים:** treat_reward (פינוק), trap_reward (מלכודת-חתול), bone_reward (יציאה), עונש צעד קבוע.
 - **פרמטרים:** gamma, slip_prob, treat_reward, trap_reward, bone_reward, מספר ריצות-replay, max_steps.
 
+---
+
 ### חדר 2 - SARSA
+
+![חדר 2 - SARSA](docs/screenshots/room2.png)
+
 - **מצבים:** מיקום ברשת 10×10 + כמה "תחנות" (beacons) ביקר בהן **בסדר הנכון** (חייב לבקר בהן בתור).
 - **פעולות:** up / down / left / right לפי מדיניות ε-greedy.
 - **תגמולים:** beacon_reward (תחנה בתור הנכון), trap_reward (מלכודת - מאפסת להתחלה), exit_reward (יציאה, רק אחרי כל התחנות), עונש צעד.
 - **פרמטרים:** alpha, gamma, epsilon, episodes, max_steps, מהירות הדמיה.
 
+---
+
 ### חדר 3 - Q-Learning מול SARSA
+
+![חדר 3 - Q-Learning](docs/screenshots/room3.png)
+
 - **מצבים:** מיקום ברשת 10×10 + אילו חפצים (artifacts) נאספו (לא חשוב בסדר), כריש שנע במסלול קבוע, פורטל מקפיץ שמתגלה.
 - **פעולות:** up / down / left / right לפי ε-greedy - מורצים **שני אלגוריתמים במקביל** (Q-Learning ו-SARSA) על אותה סביבה כדי להשוות ביניהם.
 - **תגמולים:** fragment_reward (חפץ), shark_penalty (פגיעה בכריש - חזרה להתחלה), exit_reward, עונש צעד.
 - **פרמטרים:** alpha, gamma, epsilon, episodes, max_steps, מהירות הדמיה.
 
+---
+
 ### חדר 4 - DQN
+
+![חדר 4 - DQN](docs/screenshots/room4.png)
+
+> **הדגמת אימון (וידאו):**
+
+<video src="docs/videos/room4.webm" controls width="100%">
+  סרטון הדגמה של DQN — חיזקי לומד לנווט בסביבה רציפה.
+</video>
+
 - **מצבים:** רציפים - מיקום ומהירות (x, y, vx, vy), לא טבלה.
 - **פעולות:** 9 כיווני דחיפה (שילובים של שמאל/ימין/בלי × מעלה/מטה/בלי).
 - **תגמולים:** +100 הגעה ליעד (עיגול, לא משבצת), −10 פגיעה בקיר, −0.05 כל צעד אחר.
 - **פרמטרים:** learning rate, gamma, epsilon, קצב דעיכת epsilon, episodes, max_steps.
 
+---
+
 ### חדר 5 - Curriculum Learning
+
+![חדר 5 - Curriculum Learning](docs/screenshots/room5.png)
+
 - **מצבים:** מיקום ברשת ש**גדלה בשלבים**: 4×4 → 6×6 → 10×10. קירות מתחדשים אקראית בכל שלב.
 - **פעולות:** up / down / left / right לפי ε-greedy (Q-Learning).
 - **תגמולים:** +100 יציאה, −0.1 כל צעד.
