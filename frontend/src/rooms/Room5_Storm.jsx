@@ -138,7 +138,7 @@ export default function Room5_Storm() {
           <>
             <BestResultPanel bestReward={bestReward} bestEpisode={bestEpisode} params={params} />
             <button style={styles.genBtn} onClick={onTestGeneralization} disabled={genLoading}>
-              {genLoading ? '⏳ Testing...' : '🧪 Test on new layout'}
+              {genLoading ? 'Testing...' : 'Test on new layout'}
             </button>
             {genResult && (
               <div style={styles.genPanel}>

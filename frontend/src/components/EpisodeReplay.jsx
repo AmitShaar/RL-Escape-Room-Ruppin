@@ -69,7 +69,7 @@ export default function EpisodeReplay({
       <h4 style={styles.title}>{title}</h4>
       {outcome && (
         <div style={{ ...styles.outcome, ...(outcome === 'success' ? styles.outcomeSuccess : styles.outcomeFail) }}>
-          {outcome === 'success' ? '🦴 חיזקי found the bone!' : '😢 חיזקי failed'}
+          {outcome === 'success' ? 'חיזקי found the bone!' : 'חיזקי failed'}
         </div>
       )}
       <input

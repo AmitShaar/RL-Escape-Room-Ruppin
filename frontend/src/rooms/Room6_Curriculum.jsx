@@ -39,7 +39,7 @@ const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
   { key: 'gamma', label: 'Gamma (discount)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'epsilon', label: 'Epsilon (start)', min: 0.1, max: 1.0, step: 0.01 },
-  { key: 'step_delay_ms', label: '👁️ Training speed (ms)', min: 0, max: 200, step: 10 },
+  { key: 'step_delay_ms', label: 'Training speed (ms)', min: 0, max: 200, step: 10 },
 ]
 
 const DEFAULT_PARAMS = {

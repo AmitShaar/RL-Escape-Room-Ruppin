@@ -5,7 +5,7 @@ const ROOMS = Object.entries(ROOM_META).map(([id, meta]) => ({ id: Number(id), .
 export default function RoomSelector({ activeRoom, onSelect, availableRooms }) {
   return (
     <nav style={styles.nav}>
-      <div style={styles.title}>🚀 Hizki In Space RL</div>
+      <div style={styles.title}>Hizki In Space RL</div>
       <div style={styles.tabs}>
         {ROOMS.map((room) => {
           const available = availableRooms.includes(room.id)

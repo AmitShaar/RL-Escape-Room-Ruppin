@@ -39,7 +39,7 @@ const LEGEND_LABELS = {
   start: 'Start',
   exit: 'Exit (goal)',
   bonus: 'Reward (+)',
-  trap: '🐱 Cat Danger (−)',
+  trap: 'Cat Danger (−)',
   hole: 'Black hole (resets to start)',
   wall: 'Wall',
   vent: 'Slippery',

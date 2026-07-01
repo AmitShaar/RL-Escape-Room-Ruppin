@@ -1,9 +1,9 @@
 export default function TrainingStatusBanner({ status }) {
   if (status === 'training') {
-    return <div style={styles.banner}>🐾 חיזקי is learning...</div>
+    return <div style={styles.banner}>חיזקי is learning...</div>
   }
   if (status === 'complete') {
-    return <div style={{ ...styles.banner, ...styles.complete }}>חיזקי found the bone! 🦴</div>
+    return <div style={{ ...styles.banner, ...styles.complete }}>חיזקי found the bone!</div>
   }
   return null
 }

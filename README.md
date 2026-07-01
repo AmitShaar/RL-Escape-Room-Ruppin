@@ -11,7 +11,7 @@
 - חדר 5 - DQN + מכשולים דינמיים + Partial Observation (The Storm)
 - חדר 6 - Curriculum Learning + Q-Learning (גריד שגדל בהדרגה)
 
-## 🚀 גישה לאפליקציה
+## גישה לאפליקציה
 
 **[https://rl-escape-room-ruppin.vercel.app/](https://rl-escape-room-ruppin.vercel.app/)**
 
