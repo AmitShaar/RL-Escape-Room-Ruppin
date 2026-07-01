@@ -103,12 +103,12 @@ export default function QValueHeatmap({ table, special = {}, onCellClick, label 
           row.map((v, c) => {
             const kind = cellKind(r, c, specialSets)
             const t = max > min ? (v - min) / (max - min) : 0
-            // Power-0.25 scaling: aggressively darkens the mid-range so that
-            // a well-converged V-table (all values clustered near the max)
-            // still shows a clear gradient from start (dark) to exit (bright).
-            // t^0.25 maps t=0.5 → 0.84, t=0.2 → 0.67, t=0.05 → 0.47 —
-            // much more visible spread than the default linear or sqrt.
-            const bg = KIND_COLORS[kind] || lerpColor(Math.pow(t, 0.25))
+            // Cubic scaling (t^3): makes values near the minimum MUCH darker
+            // and values near the maximum nearly the same bright orange, so
+            // a well-converged V-table shows a clear dark-to-bright gradient
+            // from cells far from the exit to cells close to it.
+            // t=0.5 → 0.125 (dark), t=0.8 → 0.512 (medium), t=1 → 1 (bright).
+            const bg = KIND_COLORS[kind] || lerpColor(Math.pow(t, 3))
             return (
               <div
                 key={`${r}-${c}`}
