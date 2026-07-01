@@ -3,7 +3,5 @@ export const ROOM_META = {
   2: { name: 'The Foggy Park', algo: 'SARSA (on-policy TD)' },
   3: { name: 'Treasure Sniff', algo: 'Q-Learning (off-policy TD)' },
   4: { name: 'The Open Field', algo: 'DQN — Deep Q-Network' },
-  5: { name: 'The Bone Machines', algo: 'Multi-Armed Bandit' },
-  6: { name: 'The Growing Maze', algo: 'Curriculum Learning (Q-Learning)' },
-  7: { name: 'The Final Trial', algo: 'Policy Gradient (REINFORCE)', bonus: true },
+  5: { name: 'The Growing Maze', algo: 'Curriculum Learning (Q-Learning)' },
 }

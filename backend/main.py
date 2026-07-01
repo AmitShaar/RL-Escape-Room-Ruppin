@@ -7,9 +7,7 @@ from rooms.room1_dp import Room1DP
 from rooms.room2_sarsa import Room2SARSA
 from rooms.room3_qlearning import Room3QLearning
 from rooms.room4_dqn import Room4DQN
-from rooms.room5_bandit import Room5Bandit
 from rooms.room6_curriculum import Room6Curriculum
-from rooms.room7_reinforce import Room7Reinforce
 
 app = FastAPI(title="Hizki In Space RL")
 
@@ -34,11 +32,7 @@ def get_room(room_id: int):
         elif room_id == 4:
             _rooms[room_id] = Room4DQN()
         elif room_id == 5:
-            _rooms[room_id] = Room5Bandit()
-        elif room_id == 6:
             _rooms[room_id] = Room6Curriculum()
-        elif room_id == 7:
-            _rooms[room_id] = Room7Reinforce()
         else:
             raise KeyError(f"Room {room_id} is not implemented yet")
     return _rooms[room_id]
@@ -76,13 +70,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 room.paused = False
                 train_task = asyncio.create_task(room.train(data.get("params", {}), websocket))
 
-            elif msg_type == "single_pull":
-                if hasattr(room, "single_pull"):
-                    result = await room.single_pull(data.get("machine"), data.get("params", {}))
-                    await websocket.send_json(result)
-                else:
-                    await websocket.send_json({"type": "error", "message": "single_pull not supported in this room"})
-
             elif msg_type == "pause_training":
                 room.request_pause()
 
@@ -100,12 +87,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
             elif msg_type == "get_replay":
                 replay = room.get_replay(data.get("episode", 0))
                 await websocket.send_json({"type": "replay_data", **replay})
-
-            elif msg_type == "test_generalization":
-                if hasattr(room, "test_generalization"):
-                    await room.test_generalization(websocket)
-                else:
-                    await websocket.send_json({"type": "error", "message": "generalization test not supported in this room"})
 
             else:
                 await websocket.send_json({"type": "error", "message": f"unknown message type: {msg_type}"})

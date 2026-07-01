@@ -171,7 +171,7 @@ export default function Room6_Curriculum() {
     [applyMapInfo]
   )
 
-  const { send, connected } = useWebSocket(6, handleMessage)
+  const { send, connected } = useWebSocket(5, handleMessage)
   useEffect(() => {
     sendRef.current = send
   }, [send])
