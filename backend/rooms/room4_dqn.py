@@ -23,13 +23,10 @@ DT = 0.02
 ACTIONS9 = [(tx, ty) for tx in (-1, 0, 1) for ty in (-1, 0, 1)]
 
 
-# Velocity has no hard bound (steady-state magnitude ~= thrust / (1 - drag),
-# e.g. ~6.7 at drag=0.85), so it's scaled down for stable network inputs.
-VELOCITY_NORM = 10.0
-
-
+# Velocity is strictly discrete: vx, vy ∈ {-1, 0, 1} (the action IS the
+# velocity — no accumulation, no drag). Already in NN-friendly range.
 def normalize_state(x, y, vx, vy):
-    return [(x / SIZE) * 2 - 1, (y / SIZE) * 2 - 1, vx / VELOCITY_NORM, vy / VELOCITY_NORM]
+    return [(x / SIZE) * 2 - 1, (y / SIZE) * 2 - 1, float(vx), float(vy)]
 
 
 class Room4DQN(BaseRoom):
@@ -46,8 +43,7 @@ class Room4DQN(BaseRoom):
         self.buffer_size = 10000
         self.target_sync = 100
         self.episodes = 100
-        self.max_steps = 500
-        self.drag = 0.85
+        self.max_steps = 200
 
         self.online = DQNNetwork()
         self.target = DQNNetwork()
@@ -82,32 +78,29 @@ class Room4DQN(BaseRoom):
         self.target_sync = params.get("target_sync", self.target_sync)
         self.episodes = params.get("episodes", self.episodes)
         self.max_steps = params.get("max_steps", self.max_steps)
-        self.drag = params.get("drag", self.drag)
 
     def map_info(self):
         return {"start": list(START), "exit_center": list(EXIT_CENTER), "exit_radius": EXIT_RADIUS, "size": SIZE}
 
-    # ---------- physics (continuous, model-free) ----------
+    # ---------- physics (discrete velocity per spec: vx,vy ∈ {-1,0,1}) ----------
 
     def physics_step(self, state, action_idx):
-        x, y, vx, vy = state
+        x, y, _vx, _vy = state
         tx, ty = ACTIONS9[action_idx]
-        vx = vx * self.drag + tx
-        vy = vy * self.drag + ty
-        nx = x + vx * DT
-        ny = y + vy * DT
+        # Velocity IS the action — no accumulation, no drag.
+        vx, vy = tx, ty
+        nx = x + vx          # one unit per timestep at max speed
+        ny = y + vy
 
         hit_wall = nx < 0 or nx > SIZE or ny < 0 or ny > SIZE
         nx = min(SIZE, max(0.0, nx))
         ny = min(SIZE, max(0.0, ny))
-        if hit_wall:
-            vx, vy = 0.0, 0.0
 
         dist = math.hypot(nx - EXIT_CENTER[0], ny - EXIT_CENTER[1])
         if dist <= EXIT_RADIUS:
             return (nx, ny, vx, vy), 100.0, True
         if hit_wall:
-            return (nx, ny, vx, vy), -10.0, False
+            return (nx, ny, 0, 0), -10.0, False
         return (nx, ny, vx, vy), -0.05, False
 
     # ---------- DQN ----------

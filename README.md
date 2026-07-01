@@ -2,13 +2,14 @@
 
 ## מבוא
 
-בפרויקט זה מוצגים חמישה "חדרים", כאשר בכל חדר מיושם אלגוריתם שונה של Reinforcement Learning. הסוכן הוא **חיזקי** - כלב בחליפת חלל שמחפש עצם בכל חדר.
+בפרויקט זה מוצגים שישה "חדרים", כאשר בכל חדר מיושם אלגוריתם שונה של Reinforcement Learning. הסוכן הוא **חיזקי** - כלב בחליפת חלל שמחפש עצם בכל חדר.
 
 - חדר 1 - Value Iteration (Dynamic Programming, Model-Based)
 - חדר 2 - SARSA (On-Policy, Model-Free)
 - חדר 3 - Q-Learning מול SARSA במקביל (Off-Policy, Model-Free)
-- חדר 4 - DQN בסביבה רציפה (Deep Q-Network, Model-Free, Off-Policy)
-- חדר 5 - Curriculum Learning + Q-Learning (גריד שגדל בהדרגה)
+- חדר 4 - DQN בסביבה רציפה עם מהירות דיסקרטית (Deep Q-Network, Off-Policy)
+- חדר 5 - DQN + מכשולים דינמיים + Partial Observation (The Storm)
+- חדר 6 - Curriculum Learning + Q-Learning (גריד שגדל בהדרגה)
 
 מטרת הקובץ: להסביר את מבנה המצבים בכל חדר, את פונקציית התגמולים, ואת הפרמטרים שאפשר לשנות מתוך המסך.
 
@@ -24,9 +25,10 @@ backend/
     room2_sarsa.py
     room3_qlearning.py
     room4_dqn.py
-    room6_curriculum.py        # חדר 5 בממשק
+    room5_storm.py             # חדר 5 - DQN + מכשולים דינמיים
+    room6_curriculum.py        # חדר 6 - Curriculum Learning
   models/
-    dqn_network.py             # רשת ה-Q של חדר 4
+    dqn_network.py             # רשת ה-Q של חדרים 4 ו-5
 
 frontend/
   src/
@@ -35,7 +37,8 @@ frontend/
       Room2_SARSA.jsx
       Room3_QLearning.jsx
       Room4_DQN.jsx
-      Room6_Curriculum.jsx     # חדר 5 בממשק
+      Room5_Storm.jsx            # חדר 5 - DQN + מכשולים דינמיים
+      Room6_Curriculum.jsx       # חדר 6 - Curriculum Learning
     components/                # רכיבים משותפים (תלת-מימד, גרפים, היטמאפ, replay...)
 
 docs/
@@ -67,7 +70,7 @@ npm install
 npm run dev
 ```
 
-לאחר מכן פותחים את הכתובת שמודפסת בטרמינל (בד"כ `http://localhost:5173`) בדפדפן. בראש המסך יש 5 לשוניות, אחת לכל חדר.
+לאחר מכן פותחים את הכתובת שמודפסת בטרמינל (בד"כ `http://localhost:5173`) בדפדפן. בראש המסך יש 6 לשוניות, אחת לכל חדר.
 
 בכל חדר יש כפתורים:
 - **Train** - מתחיל אימון לפי הפרמטרים שנבחרו בסליידרים
@@ -120,19 +123,29 @@ npm run dev
 
 https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
-- **מצבים:** רציפים - מיקום ומהירות (x, y, vx, vy), לא טבלה.
-- **פעולות:** 9 כיווני דחיפה (שילובים של שמאל/ימין/בלי × מעלה/מטה/בלי).
-- **תגמולים:** +100 הגעה ליעד (עיגול, לא משבצת), −10 פגיעה בקיר, −0.05 כל צעד אחר.
+- **מצבים:** רציפים - מיקום ומהירות (x, y, vx, vy). מהירות **דיסקרטית** {−1, 0, 1} בכל ציר — הפעולה IS המהירות (ללא accumulation/drag), תואם לספק.
+- **פעולות:** 9 כיווני דחיפה (שילובים של {−1,0,1} × {−1,0,1}).
+- **תגמולים:** +100 הגעה ליעד (עיגול), −10 פגיעה בקיר, −0.05 כל צעד אחר.
 - **פרמטרים:** learning rate, gamma, epsilon, קצב דעיכת epsilon, episodes, max_steps.
 
 ---
 
-### חדר 5 - Curriculum Learning
+### חדר 5 - DQN + מכשולים דינמיים (The Storm)
 
-![חדר 5 - Curriculum Learning](docs/screenshots/room5.png)
+- **מצבים:** (x, y, vx, vy) רציפים + מרחקים ל-K המכשולים הקרובים ביותר בטווח ראייה X מ'. מכשולים מחוץ לטווח מקבלים sentinel קבוע, כך שממד ה-state נשאר קבוע.
+- **פעולות:** 9 כיווני דחיפה (thrust), פיזיקה עם momentum ו-drag.
+- **תגמולים:** +100 יציאה, −20 התנגשות במכשול (terminal), −10 פגיעה בקיר, −0.05 צעד + potential-based shaping (gradient לכיוון היציאה).
+- **ייחוד:** כמות ומיקום המכשולים **רנדומליים** בכל אפיזודה. בסוף האימון — כפתור "Test on new layout" מריץ 10 בדיקות על מפות **שהסוכן מעולם לא ראה**, ומדווח שיעור הצלחה.
+- **פרמטרים:** learning rate, gamma, epsilon, epsilon decay, episodes, max steps, N obstacles, visibility range.
+
+---
+
+### חדר 6 - Curriculum Learning
+
+![חדר 6 - Curriculum Learning](docs/screenshots/room5.png)
 
 - **מצבים:** מיקום ברשת ש**גדלה בשלבים**: 4×4 → 6×6 → 10×10. קירות מתחדשים אקראית בכל שלב.
 - **פעולות:** up / down / left / right לפי ε-greedy (Q-Learning).
 - **תגמולים:** +100 יציאה, −0.1 כל צעד.
 - **פרמטרים:** alpha, gamma, epsilon התחלתי, מהירות הדמיה.
-- **הייחוד:** טבלת ה-Q **לא מתאפסת** בין שלבים - היא מועתקת לפינה של טבלה גדולה יותר, כדי שהידע יעבור לשלב הקשה יותר.
+- **הייחוד:** טבלת ה-Q **לא מתאפסת** בין שלבים — מועתקת לפינה של טבלה גדולה יותר, כדי שהידע מהשלב הקל יעבור לשלב הקשה.
