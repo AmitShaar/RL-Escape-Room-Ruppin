@@ -18,7 +18,6 @@ SIZE = 10.0
 START = (1.0, 1.0)
 EXIT_CENTER = (9.0, 9.0)
 EXIT_RADIUS = 0.5
-DT = 0.02
 
 ACTIONS9 = [(tx, ty) for tx in (-1, 0, 1) for ty in (-1, 0, 1)]
 

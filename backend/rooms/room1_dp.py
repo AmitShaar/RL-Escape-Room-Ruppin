@@ -95,13 +95,9 @@ class Room1DP(BaseRoom):
         self.gamma = params.get("gamma", self.gamma)
         self.theta = params.get("theta", self.theta)
         self.slip_prob = params.get("slip_prob", self.slip_prob)
-        self.num_coral = params.get("num_coral", self.num_coral)
-        self.num_vents = params.get("num_vents", self.num_vents)
-        self.num_traps = params.get("num_traps", self.num_traps)
         self.exit_reward = params.get("exit_reward", self.exit_reward)
         self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
-        self.num_holes = params.get("num_holes", self.num_holes)
         self.treat_reward = params.get("treat_reward", self.treat_reward)
         # num_treats sizes the bitmask dimension of v_table/policy, so a
         # change has to regenerate the map (same pattern as K_beacons /
