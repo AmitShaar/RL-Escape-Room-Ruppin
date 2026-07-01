@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
 import CatDanger from './CatDanger.jsx'
+import Key3D from './Key3D.jsx'
 
 export const GRID_SIZE = 10
 
@@ -178,13 +179,9 @@ export default function GridWorld3D({
 
   beacons.forEach(([r, c], idx) => {
     const visited = idx < beaconsVisitedCount
-    const color = visited ? '#5577aa' : '#aaff44'
-    const [x, y, z] = gridToWorld(r, c, 0.5)
+    const [x, , z] = gridToWorld(r, c, 0.5)
     cells.push(
-      <mesh key={`beacon-${r}-${c}`} position={[x, y, z]}>
-        <sphereGeometry args={[0.22, 16, 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={visited ? 0.2 : 0.7} />
-      </mesh>
+      <Key3D key={`beacon-${r}-${c}`} position={[x, 0.5, z]} collected={visited} />
     )
   })
 

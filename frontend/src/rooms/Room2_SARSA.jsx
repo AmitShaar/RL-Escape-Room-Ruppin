@@ -233,6 +233,7 @@ export default function Room2_SARSA() {
             table={displayedQHeatmap}
             special={{ vents: special.slip_cells, traps: special.traps, bonuses: special.beacons, start: [0, 0], exit: [9, 9] }}
             label={heatmapLabel}
+            labelOverrides={{ bonus: 'Key' }}
           />
         </div>
       </main>
