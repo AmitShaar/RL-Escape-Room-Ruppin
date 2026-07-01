@@ -48,7 +48,7 @@ frontend/
     components/                # רכיבים משותפים (תלת-מימד, גרפים, היטמאפ, replay...)
 
 docs/
-  screenshots/                 # תמונת מסך אחת לכל חדר (room1.png ... room5.png)
+  screenshots/                 # תמונת מסך אחת לכל חדר (room1.png ... room6.png)
   videos/
     room4.webm                 # סרטון הדגמה לחדר 4 (DQN)
 
@@ -138,6 +138,8 @@ https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
 ### חדר 5 - DQN + מכשולים דינמיים (The Storm)
 
+![חדר 5 - The Storm](docs/screenshots/room5.png)
+
 - **מצבים:** (x, y, vx, vy) רציפים + מרחקים ל-K המכשולים הקרובים ביותר בטווח ראייה X מ'. מכשולים מחוץ לטווח מקבלים sentinel קבוע, כך שממד ה-state נשאר קבוע.
 - **פעולות:** 9 כיווני דחיפה (thrust), פיזיקה עם momentum ו-drag.
 - **תגמולים:** +100 יציאה, −20 התנגשות במכשול (terminal), −10 פגיעה בקיר, −0.05 צעד + potential-based shaping (gradient לכיוון היציאה).
@@ -148,7 +150,7 @@ https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
 ### חדר 6 - Curriculum Learning
 
-![חדר 6 - Curriculum Learning](docs/screenshots/room5.png)
+![חדר 6 - Curriculum Learning](docs/screenshots/room6.png)
 
 - **מצבים:** מיקום ברשת ש**גדלה בשלבים**: 4×4 → 6×6 → 10×10. קירות מתחדשים אקראית בכל שלב.
 - **פעולות:** up / down / left / right לפי ε-greedy (Q-Learning).
