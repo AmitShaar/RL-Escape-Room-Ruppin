@@ -263,7 +263,7 @@ export default function Room3_QLearning() {
             table={qHeatmap}
             special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9], portal: bestPortal, portalDest: bestPortalDest }}
             label="max Q(s,a) Heatmap"
-            labelOverrides={{ trap: 'Shark patrol (−)' }}
+            labelOverrides={{ trap: 'X חוסם — מסלול (−)' }}
           />
         </div>
       </main>
