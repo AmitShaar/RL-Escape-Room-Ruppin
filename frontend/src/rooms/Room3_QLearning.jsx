@@ -57,6 +57,7 @@ export default function Room3_QLearning() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [qHeatmap, setQHeatmap] = useState(ZERO_TABLE)
+  const [qHeatmapAll, setQHeatmapAll] = useState(null)  // all 8 bitmask slices
   const [policy, setPolicy] = useState(EMPTY_POLICY)
   const [special, setSpecial] = useState({ artifacts: [], shark_patrol: [] })
   const [episodeHistory, setEpisodeHistory] = useState([])
@@ -99,6 +100,7 @@ export default function Room3_QLearning() {
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
       setQHeatmap(msg.q_values)
+      if (msg.q_values_all) setQHeatmapAll(msg.q_values_all)
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
       setPortalFirstEpisode(msg.portal_first_episode)
       setBestPortal(msg.best_portal || null)
@@ -114,6 +116,7 @@ export default function Room3_QLearning() {
       setTrajectory(msg.trajectory || [])
     } else if (msg.type === 'reset_complete') {
       setQHeatmap(ZERO_TABLE)
+      setQHeatmapAll(null)
       setPolicy(EMPTY_POLICY)
       setEpisodeHistory([])
       setTrajectory([])
@@ -173,11 +176,19 @@ export default function Room3_QLearning() {
     (step) => {
       const point = trajectory[step]
       setAgentRC(point ? point.pos : [0, 0])
-      setCollectedMask(point ? point.bitmask : 0)
+      const mask = point ? (point.bitmask ?? 0) : 0
+      setCollectedMask(mask)
       setReplayStep(step)
+      if (qHeatmapAll && qHeatmapAll[mask]) setQHeatmap(qHeatmapAll[mask])
     },
-    [trajectory]
+    [trajectory, qHeatmapAll]
   )
+
+  // Heatmap label shows the binary representation of the current bitmask
+  const replayBitmask = trajectory[replayStep]?.bitmask ?? 0
+  const heatmapLabel = qHeatmapAll
+    ? `max Q(s,a) — bitmask ${replayBitmask} (${replayBitmask.toString(2).padStart(3, '0')})`
+    : 'max Q(s,a) Heatmap'
 
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
@@ -262,7 +273,7 @@ export default function Room3_QLearning() {
           <QValueHeatmap
             table={qHeatmap}
             special={{ bonuses: special.artifacts, traps: special.shark_patrol, start: [0, 0], exit: [9, 9], portal: bestPortal, portalDest: bestPortalDest }}
-            label="max Q(s,a) Heatmap"
+            label={heatmapLabel}
             labelOverrides={{ trap: 'X חוסם — מסלול (−)' }}
           />
         </div>
