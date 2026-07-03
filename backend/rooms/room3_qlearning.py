@@ -15,12 +15,11 @@ ACTION_NAMES = ["UP", "DOWN", "LEFT", "RIGHT"]
 
 
 class Room3QLearning(BaseRoom):
-    """Treasure Hunt room: off-policy Q-Learning vs a parallel on-policy SARSA run.
+    """Treasure Hunt room: off-policy Q-Learning.
 
-    Both algorithms share identical environment dynamics (shark patrol, portal,
-    unordered artifact collection) but learn independent Q-tables on
-    independently-sampled episodes, so their reward curves can be overlaid to
-    show the off-policy vs on-policy convergence difference.
+    Agent must collect all artifacts (unordered bitmask), avoid a patrolling
+    shark, and optionally use a one-time teleporting portal before reaching
+    the exit.
     """
 
     def __init__(self):
@@ -42,7 +41,6 @@ class Room3QLearning(BaseRoom):
         self.artifacts = []
         self.patrol_cells = []
         self.q_table = None
-        self.q_table_sarsa = None
 
         self.agent_pos = START
         self.bitmask = 0
@@ -76,7 +74,6 @@ class Room3QLearning(BaseRoom):
         self.patrol_cells = self._make_patrol()
 
         self.q_table = np.zeros((ROWS, COLS, 1 << self.m_fragments, 4))
-        self.q_table_sarsa = np.zeros_like(self.q_table)
 
         self.agent_pos = START
         self.bitmask = 0
@@ -157,7 +154,7 @@ class Room3QLearning(BaseRoom):
             return random.randrange(4)
         return int(np.argmax(table[row, col, bitmask]))
 
-    # ---------- per-algorithm episode runners ----------
+    # ---------- episode runner ----------
 
     @staticmethod
     async def _safe_send(websocket, payload):
@@ -204,7 +201,6 @@ class Room3QLearning(BaseRoom):
             if step % 5 == 0:
                 if not await self._safe_send(websocket, {
                     "type": "step_update",
-                    "algo": "qlearning",
                     "episode": episode,
                     "step": step,
                     "agent_pos": [row, col],
@@ -224,42 +220,16 @@ class Room3QLearning(BaseRoom):
 
         return trajectory, total_reward, step, portal_discovered, done, disconnected, portal_pos
 
-    async def _run_episode_sarsa(self, epsilon, episode):
-        row, col, bitmask = START[0], START[1], 0
-        portal_pos = self.random_portal_position()
-        portal_used = False
-        action = self.epsilon_greedy(self.q_table_sarsa, row, col, bitmask, epsilon)
-        total_reward = 0.0
-        step = 0
-
-        for step in range(self.max_steps):
-            (nr, nc, nb, nu), reward, done = self.env_step(row, col, bitmask, action, step, portal_pos, portal_used)
-            portal_used = nu
-            next_action = self.epsilon_greedy(self.q_table_sarsa, nr, nc, nb, epsilon)
-
-            td_target = reward if done else reward + self.gamma * self.q_table_sarsa[nr, nc, nb, next_action]
-            self.q_table_sarsa[row, col, bitmask, action] += self.alpha * (
-                td_target - self.q_table_sarsa[row, col, bitmask, action]
-            )
-
-            row, col, bitmask, action = nr, nc, nb, next_action
-            total_reward += reward
-            if done:
-                break
-
-        return total_reward, step, done
-
     # ---------- training orchestration ----------
 
     async def train(self, params: dict, websocket):
         self.configure(params)
         self.q_table = np.zeros((ROWS, COLS, 1 << self.m_fragments, 4))
-        self.q_table_sarsa = np.zeros_like(self.q_table)
         self.stop_requested = False
         epsilon = self.epsilon
         portal_first_episode = None
-        episode_rewards_q = {}
-        episode_portals = {}   # portal position for each episode
+        episode_rewards = {}
+        episode_portals = {}
 
         if not await self._safe_send(websocket, {"type": "room_info", **self.map_info()}):
             return
@@ -271,7 +241,7 @@ class Room3QLearning(BaseRoom):
             if self.stop_requested:
                 break
 
-            traj_q, reward_q, steps_q, portal_discovered, success_q, disconnected, portal_pos = await self._run_episode_qlearning(
+            traj, reward, steps, portal_discovered, success, disconnected, portal_pos = await self._run_episode_qlearning(
                 epsilon, episode, websocket, self.episodes
             )
             if disconnected:
@@ -279,27 +249,19 @@ class Room3QLearning(BaseRoom):
             if portal_discovered and portal_first_episode is None:
                 portal_first_episode = episode
             episode_portals[episode] = list(portal_pos)
-            self.save_episode(episode, traj_q)
-            episode_rewards_q[episode] = reward_q
-
-            reward_s, steps_s, success_s = await self._run_episode_sarsa(epsilon, episode)
+            self.save_episode(episode, traj)
+            episode_rewards[episode] = reward
             epsilon = max(0.01, epsilon * self.epsilon_decay)
 
             if not await self._safe_send(websocket, {
-                "type": "episode_end", "algo": "qlearning",
-                "episode": episode, "total_reward": reward_q, "steps": steps_q, "epsilon": epsilon,
-                "success": success_q, "outcome": "success" if success_q else "fail",
-            }):
-                return
-            if not await self._safe_send(websocket, {
-                "type": "episode_end", "algo": "sarsa",
-                "episode": episode, "total_reward": reward_s, "steps": steps_s, "epsilon": epsilon,
-                "success": success_s, "outcome": "success" if success_s else "fail",
+                "type": "episode_end",
+                "episode": episode, "total_reward": reward, "steps": steps, "epsilon": epsilon,
+                "success": success, "outcome": "success" if success else "fail",
             }):
                 return
             await asyncio.sleep(0)
 
-        best_episode = max(episode_rewards_q, key=episode_rewards_q.get) if episode_rewards_q else 0
+        best_episode = max(episode_rewards, key=episode_rewards.get) if episode_rewards else 0
         best_portal = episode_portals.get(best_episode)
         # The portal teleports 3-5 steps diagonally toward exit; use d=4 as
         # the representative midpoint destination for the heatmap overlay.
@@ -314,7 +276,7 @@ class Room3QLearning(BaseRoom):
         await self._safe_send(websocket, {
             "type": "training_complete",
             "best_episode": best_episode,
-            "best_reward": episode_rewards_q.get(best_episode, 0.0),
+            "best_reward": episode_rewards.get(best_episode, 0.0),
             "policy": np.argmax(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "q_values": np.max(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "portal_first_episode": portal_first_episode,

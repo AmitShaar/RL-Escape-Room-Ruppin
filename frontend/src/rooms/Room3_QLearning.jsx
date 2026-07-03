@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 import HyperparamPanel from '../components/HyperparamPanel.jsx'
 import TrainingControls from '../components/TrainingControls.jsx'
-import ComparisonChart from '../components/ComparisonChart.jsx'
+import RewardChart from '../components/RewardChart.jsx'
 import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
@@ -53,19 +53,13 @@ function sharkPosAtStep(patrol, shark_speed, step) {
   return patrol[idx]
 }
 
-function firstSuccessEpisode(history) {
-  const hit = history.find((e) => e.success)
-  return hit ? hit.episode : null
-}
-
 export default function Room3_QLearning() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [qHeatmap, setQHeatmap] = useState(ZERO_TABLE)
   const [policy, setPolicy] = useState(EMPTY_POLICY)
   const [special, setSpecial] = useState({ artifacts: [], shark_patrol: [] })
-  const [historyQ, setHistoryQ] = useState([])
-  const [historyS, setHistoryS] = useState([])
+  const [episodeHistory, setEpisodeHistory] = useState([])
   const [trajectory, setTrajectory] = useState([])
   const [agentRC, setAgentRC] = useState([0, 0])
   const [collectedMask, setCollectedMask] = useState(0)
@@ -89,7 +83,7 @@ export default function Room3_QLearning() {
   const handleMessage = useCallback((msg) => {
     if (msg.type === 'room_info') {
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
-    } else if (msg.type === 'step_update' && msg.algo === 'qlearning') {
+    } else if (msg.type === 'step_update') {
       setLiveAgentPos(msg.agent_pos)
       setLiveSharkPos(msg.shark_pos)
       if (msg.q_values) setQHeatmap(msg.q_values)
@@ -98,15 +92,10 @@ export default function Room3_QLearning() {
       if (msg.total_episodes != null) setLiveTotalEpisodes(msg.total_episodes)
       if (msg.epsilon != null) setLiveEpsilon(msg.epsilon)
     } else if (msg.type === 'episode_end') {
-      const entry = { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon, success: msg.success }
-      if (msg.algo === 'qlearning') {
-        setHistoryQ((prev) => [...prev, entry])
-        setFlashOutcome(msg.outcome)
-        clearTimeout(flashTimeoutRef.current)
-        flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
-      } else {
-        setHistoryS((prev) => [...prev, entry])
-      }
+      setEpisodeHistory((prev) => [...prev, { episode: msg.episode, total_reward: msg.total_reward, epsilon: msg.epsilon, success: msg.success }])
+      setFlashOutcome(msg.outcome)
+      clearTimeout(flashTimeoutRef.current)
+      flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
       setQHeatmap(msg.q_values)
@@ -126,8 +115,7 @@ export default function Room3_QLearning() {
     } else if (msg.type === 'reset_complete') {
       setQHeatmap(ZERO_TABLE)
       setPolicy(EMPTY_POLICY)
-      setHistoryQ([])
-      setHistoryS([])
+      setEpisodeHistory([])
       setTrajectory([])
       setAgentRC([0, 0])
       setCollectedMask(0)
@@ -156,8 +144,7 @@ export default function Room3_QLearning() {
   const onParamChange = (key, value) => setParams((p) => ({ ...p, [key]: value }))
 
   const onStart = () => {
-    setHistoryQ([])
-    setHistoryS([])
+    setEpisodeHistory([])
     setStatus('training')
     send({ type: 'start_training', params })
   }
@@ -192,29 +179,6 @@ export default function Room3_QLearning() {
     [trajectory]
   )
 
-  const comparisonData = useMemo(() => {
-    const len = Math.max(historyQ.length, historyS.length)
-    const data = []
-    for (let i = 0; i < len; i++) {
-      data.push({
-        episode: historyQ[i]?.episode ?? historyS[i]?.episode ?? i,
-        qlearning: historyQ[i]?.total_reward,
-        sarsa: historyS[i]?.total_reward,
-      })
-    }
-    return data
-  }, [historyQ, historyS])
-
-  const convergenceLabel = useMemo(() => {
-    if (status !== 'complete') return null
-    const qEp = firstSuccessEpisode(historyQ)
-    const sEp = firstSuccessEpisode(historyS)
-    if (qEp == null || sEp == null) return 'Neither algorithm reliably solved the room.'
-    if (qEp < sEp) return `Q-Learning converged faster (first success ep ${qEp} vs SARSA ep ${sEp}) — off-policy max-target reaches the portal shortcut sooner.`
-    if (sEp < qEp) return `SARSA converged faster (first success ep ${sEp} vs Q-Learning ep ${qEp}) this run.`
-    return `Both converged at the same episode (${qEp}).`
-  }, [status, historyQ, historyS])
-
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
   const replaySharkPos = useMemo(
@@ -243,17 +207,8 @@ export default function Room3_QLearning() {
         {portalFirstEpisode != null && (
           <div style={styles.badge}>Portal first used at episode {portalFirstEpisode}</div>
         )}
-        <ComparisonChart
-          data={comparisonData}
-          xKey="episode"
-          title="SARSA vs Q-Learning reward"
-          portalEpisode={portalFirstEpisode}
-          series={[
-            { key: 'qlearning', label: 'Q-Learning', color: '#00ffaa' },
-            { key: 'sarsa', label: 'SARSA', color: '#ffaa00' },
-          ]}
-        />
-        {convergenceLabel && <div style={styles.insight}>{convergenceLabel}</div>}
+        <RewardChart data={episodeHistory} xKey="episode" yKey="total_reward" title="Reward per episode" />
+        <RewardChart data={episodeHistory} xKey="episode" yKey="epsilon" title="Epsilon decay" color="#ffaa00" />
         <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} checkSuccess={checkSuccess} />
       </aside>
 
