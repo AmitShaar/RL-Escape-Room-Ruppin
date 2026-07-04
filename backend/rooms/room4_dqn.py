@@ -43,6 +43,9 @@ class Room4DQN(BaseRoom):
         self.target_sync = 100
         self.episodes = 100
         self.max_steps = 200
+        self.exit_reward = 100.0
+        self.wall_penalty = -10.0
+        self.step_penalty = -0.05
 
         self.state = (START[0], START[1], 0.0, 0.0)
         self.reset()
@@ -71,6 +74,9 @@ class Room4DQN(BaseRoom):
         self.target_sync = params.get("target_sync", self.target_sync)
         self.episodes = params.get("episodes", self.episodes)
         self.max_steps = params.get("max_steps", self.max_steps)
+        self.exit_reward = params.get("exit_reward", self.exit_reward)
+        self.wall_penalty = params.get("wall_penalty", self.wall_penalty)
+        self.step_penalty = params.get("step_penalty", self.step_penalty)
 
     def map_info(self):
         return {"start": list(START), "exit_center": list(EXIT_CENTER), "exit_radius": EXIT_RADIUS, "size": SIZE}
@@ -91,10 +97,10 @@ class Room4DQN(BaseRoom):
 
         dist = math.hypot(nx - EXIT_CENTER[0], ny - EXIT_CENTER[1])
         if dist <= EXIT_RADIUS:
-            return (nx, ny, vx, vy), 100.0, True
+            return (nx, ny, vx, vy), self.exit_reward, True
         if hit_wall:
-            return (nx, ny, 0, 0), -10.0, False
-        return (nx, ny, vx, vy), -0.05, False
+            return (nx, ny, 0, 0), self.wall_penalty, False
+        return (nx, ny, vx, vy), self.step_penalty, False
 
     # ---------- DQN ----------
 

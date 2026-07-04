@@ -50,6 +50,11 @@ class Room5Storm(BaseRoom):
         self.episodes = 300
         self.max_steps = 500
         self.drag = 0.85
+        self.exit_reward = 100.0
+        self.wall_penalty = -10.0
+        self.step_penalty = -0.05
+        self.obstacle_penalty = -20.0
+        self.shaping_coef = 8.0
 
         self.n_obstacles = 5
         self.visibility_range = 3.0
@@ -120,10 +125,19 @@ class Room5Storm(BaseRoom):
         self.epsilon_decay = params.get("epsilon_decay", self.epsilon_decay)
         self.episodes = params.get("episodes", self.episodes)
         self.max_steps = params.get("max_steps", self.max_steps)
+        self.batch_size = params.get("batch_size", self.batch_size)
+        self.buffer_size = params.get("buffer_size", self.buffer_size)
+        self.target_sync = params.get("target_sync", self.target_sync)
         self.n_obstacles = params.get("n_obstacles", self.n_obstacles)
         self.visibility_range = params.get("visibility_range", self.visibility_range)
         self.k_visible = params.get("k_visible", self.k_visible)
         self.obstacle_drift = params.get("obstacle_drift", self.obstacle_drift)
+        self.drag = params.get("drag", self.drag)
+        self.exit_reward = params.get("exit_reward", self.exit_reward)
+        self.wall_penalty = params.get("wall_penalty", self.wall_penalty)
+        self.step_penalty = params.get("step_penalty", self.step_penalty)
+        self.obstacle_penalty = params.get("obstacle_penalty", self.obstacle_penalty)
+        self.shaping_coef = params.get("shaping_coef", self.shaping_coef)
 
     def map_info(self):
         return {
@@ -173,17 +187,17 @@ class Room5Storm(BaseRoom):
 
         dist_before = math.hypot(x - EXIT_CENTER[0], y - EXIT_CENTER[1])
         dist_after = math.hypot(nx - EXIT_CENTER[0], ny - EXIT_CENTER[1])
-        shaping = 8.0 * (dist_before - dist_after)
+        shaping = self.shaping_coef * (dist_before - dist_after)
 
         for ox, oy, _, _ in obstacles:
             if math.hypot(nx - ox, ny - oy) <= OBSTACLE_RADIUS:
-                return (nx, ny, vx, vy), -20.0 + shaping, True
+                return (nx, ny, vx, vy), self.obstacle_penalty + shaping, True
 
         if dist_after <= EXIT_RADIUS:
-            return (nx, ny, vx, vy), 100.0 + shaping, True
+            return (nx, ny, vx, vy), self.exit_reward + shaping, True
         if hit_wall:
-            return (nx, ny, vx, vy), -10.0 + shaping, False
-        return (nx, ny, vx, vy), -0.05 + shaping, False
+            return (nx, ny, vx, vy), self.wall_penalty + shaping, False
+        return (nx, ny, vx, vy), self.step_penalty + shaping, False
 
     # ---------- DQN ----------
 

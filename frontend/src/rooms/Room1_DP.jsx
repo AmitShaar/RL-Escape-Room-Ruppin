@@ -24,9 +24,11 @@ import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 const SCHEMA = [
   { key: 'gamma', label: 'γ (gamma)', min: 0.1, max: 0.99, step: 0.01 },
   { key: 'slip_prob', label: 'Slip probability', min: 0, max: 0.5, step: 0.01 },
+  { key: 'num_treats', label: 'Num treats', min: 1, max: 8, step: 1 },
   { key: 'treat_reward', label: 'Treat reward', min: 1, max: 20, step: 1 },
   { key: 'trap_reward', label: 'Cat danger penalty', min: -30, max: -1, step: 1 },
-  { key: 'bone_reward', label: 'Bone reward (exit)', min: 10, max: 200, step: 10 },
+  { key: 'exit_reward', label: 'Exit reward (bone)', min: 10, max: 200, step: 10 },
+  { key: 'theta', label: 'Theta (convergence)', min: 0.00001, max: 0.01, step: 0.00001 },
   { key: 'replay_episodes', label: 'Episodes (replay)', min: 1, max: 10, step: 1 },
   { key: 'max_steps', label: 'Max steps', min: 50, max: 500, step: 50 },
 ]
@@ -34,9 +36,11 @@ const SCHEMA = [
 const DEFAULT_PARAMS = {
   gamma: 0.95,
   slip_prob: 0.1,
+  num_treats: 5,
   treat_reward: 5,
   trap_reward: -20,
-  bone_reward: 100,
+  exit_reward: 100,
+  theta: 0.0001,
   replay_episodes: 1,
   max_steps: 200,
 }

@@ -20,8 +20,19 @@ const SCHEMA = [
   { key: 'epsilon_decay', label: 'Decay', min: 0.9, max: 0.999, step: 0.001 },
   { key: 'episodes', label: 'Episodes', min: 50, max: 500, step: 50 },
   { key: 'max_steps', label: 'Max Steps', min: 100, max: 1000, step: 50 },
+  { key: 'batch_size', label: 'Batch size', min: 16, max: 256, step: 16 },
+  { key: 'buffer_size', label: 'Replay buffer size', min: 1000, max: 50000, step: 1000 },
+  { key: 'target_sync', label: 'Target sync (steps)', min: 10, max: 500, step: 10 },
   { key: 'n_obstacles', label: 'Obstacles (N)', min: 1, max: 10, step: 1 },
+  { key: 'k_visible', label: 'Visible obstacles (K)', min: 1, max: 8, step: 1 },
   { key: 'visibility_range', label: 'Visibility range (m)', min: 1, max: 6, step: 0.5 },
+  { key: 'obstacle_drift', label: 'Obstacle speed', min: 0.001, max: 0.1, step: 0.001 },
+  { key: 'drag', label: 'Drag (inertia)', min: 0.1, max: 0.99, step: 0.01 },
+  { key: 'exit_reward', label: 'Exit reward', min: 10, max: 200, step: 10 },
+  { key: 'wall_penalty', label: 'Wall penalty', min: -30, max: -1, step: 1 },
+  { key: 'obstacle_penalty', label: 'Obstacle penalty', min: -50, max: -5, step: 5 },
+  { key: 'step_penalty', label: 'Step penalty', min: -0.5, max: 0, step: 0.05 },
+  { key: 'shaping_coef', label: 'Shaping coefficient', min: 0, max: 20, step: 1 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -31,8 +42,19 @@ const DEFAULT_PARAMS = {
   epsilon_decay: 0.995,
   episodes: 300,
   max_steps: 500,
+  batch_size: 64,
+  buffer_size: 10000,
+  target_sync: 100,
   n_obstacles: 5,
+  k_visible: 3,
   visibility_range: 3.0,
+  obstacle_drift: 0.01,
+  drag: 0.85,
+  exit_reward: 100,
+  wall_penalty: -10,
+  obstacle_penalty: -20,
+  step_penalty: -0.05,
+  shaping_coef: 8,
 }
 
 export default function Room5_Storm() {
