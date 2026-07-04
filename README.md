@@ -132,7 +132,7 @@ npm run dev
 
 > **סרטון אימון — חיזקי לומד לנווט:**
 
-https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
+https://github.com/user-attachments/assets/5cc7f55e-04a9-4b19-ac14-15c502a80647
 
 **הרעיון:** הפעם אין גריד — חיזקי שט בחלל פתוח עם מיקום ומהירות רציפים. אין טבלת Q כי יש אינסוף מצבים אפשריים, אז רשת נוירונים מחליפה אותה.
 
@@ -150,6 +150,10 @@ https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 ### חדר 5 — DQN + מכשולים (The Storm)
 
 ![חדר 5](docs/screenshots/room5.png)
+
+> **סרטון אימון — חיזקי מתמודד עם מכשולים:**
+
+https://github.com/user-attachments/assets/9e072704-fe4f-4143-a7b7-ead0f9461315
 
 **הרעיון:** כמו חדר 4, רק שעכשיו יש מכשולים שזזים ומיקומם משתנה בכל ניסיון. חיזקי לא יכול לשנן מפה — חייב ללמוד לזהות מכשולים ולהגיב.
 
