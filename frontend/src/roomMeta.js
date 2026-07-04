@@ -4,5 +4,4 @@ export const ROOM_META = {
   3: { name: 'Treasure Sniff', algo: 'Q-Learning (off-policy TD)' },
   4: { name: 'The Open Field', algo: 'DQN — Deep Q-Network' },
   5: { name: 'The Storm', algo: 'DQN + Dynamic Obstacles' },
-  6: { name: 'The Growing Maze', algo: 'Curriculum Learning (Q-Learning)' },
 }
