@@ -39,7 +39,7 @@ const DEFAULT_PARAMS = {
   slip_prob: 0.15,
   K_beacons: 3,
   exit_reward: 100,
-  beacon_reward: 20,
+  key_reward: 20,
   trap_reward: -15,
   step_penalty: -0.1,
   step_delay_ms: 0,

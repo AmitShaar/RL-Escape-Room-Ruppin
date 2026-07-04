@@ -28,7 +28,7 @@ class Room2SARSA(BaseRoom):
         self.slip_prob = 0.15
         self.k_beacons = 3
         self.exit_reward = 100.0
-        self.beacon_reward = 20.0
+        self.key_reward = 20.0
         self.trap_reward_val = -15.0
         self.step_penalty = -0.1
         self.step_delay = 0.0
@@ -88,7 +88,7 @@ class Room2SARSA(BaseRoom):
             self.k_beacons = new_k
             self.reset()
         self.exit_reward = params.get("exit_reward", self.exit_reward)
-        self.beacon_reward = params.get("beacon_reward", self.beacon_reward)
+        self.key_reward = params.get("key_reward", self.key_reward)
         self.trap_reward_val = params.get("trap_reward", self.trap_reward_val)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
         # Windows' default asyncio timer granularity (~15.6ms) makes sleeps
@@ -119,7 +119,7 @@ class Room2SARSA(BaseRoom):
                 return (EXIT[0], EXIT[1], visited), self.exit_reward, True
             return (nxt[0], nxt[1], visited), self.step_penalty, False
         if visited < self.k_beacons and nxt == self.beacons[visited]:
-            return (nxt[0], nxt[1], visited + 1), self.beacon_reward, False
+            return (nxt[0], nxt[1], visited + 1), self.key_reward, False
         if nxt in self.beacons:
             return (nxt[0], nxt[1], visited), 0.0, False
         return (nxt[0], nxt[1], visited), self.step_penalty, False
