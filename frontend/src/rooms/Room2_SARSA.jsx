@@ -225,7 +225,7 @@ export default function Room2_SARSA() {
         <div style={styles.sceneWrap}>
           <Scene3D>
             <GridWorld3D
-              vTable={qHeatmap}
+              vTable={displayedQHeatmap}
               policy={status === 'complete' ? policy : null}
               vents={special.slip_cells}
               traps={special.traps}
