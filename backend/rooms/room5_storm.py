@@ -321,6 +321,9 @@ class Room5Storm(BaseRoom):
         """Run the trained greedy policy on fresh, never-trained-on layouts."""
         runs = []
         for _ in range(num_layouts):
+            if self.stop_requested:
+                break
+            await asyncio.sleep(0)
             obstacles = self._make_obstacles()
             state = (START[0], START[1], 0.0, 0.0)
             total_reward = 0.0

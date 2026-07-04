@@ -100,6 +100,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
     except WebSocketDisconnect:
         if train_task and not train_task.done():
             room.request_stop()
+            train_task.cancel()
 
 
 if __name__ == "__main__":

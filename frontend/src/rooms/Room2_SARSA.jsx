@@ -74,8 +74,9 @@ export default function Room2_SARSA() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [qHeatmap, setQHeatmap] = useState(ZERO_TABLE)
-  const [qHeatmapAll, setQHeatmapAll] = useState(null)   // all visited-count slices
+  const [qHeatmapAll, setQHeatmapAll] = useState(null)
   const [policy, setPolicy] = useState(EMPTY_POLICY)
+  const [policyAll, setPolicyAll] = useState(null)
   const [special, setSpecial] = useState({ beacons: [], slip_cells: [], traps: [] })
   const [episodeHistory, setEpisodeHistory] = useState([])
   const [trajectory, setTrajectory] = useState([])
@@ -99,6 +100,7 @@ export default function Room2_SARSA() {
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
     } else if (msg.type === 'step_update') {
       setLiveAgentPos(msg.agent_pos)
+      if (msg.visited != null) setVisitedCount(msg.visited)
       if (msg.q_values) setQHeatmap(msg.q_values)
       setLiveEpisode(msg.episode)
       setLiveStep(msg.step)
@@ -111,6 +113,7 @@ export default function Room2_SARSA() {
       flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
+      if (msg.policy_all) setPolicyAll(msg.policy_all)
       setQHeatmap(msg.q_values)
       if (msg.q_values_all) setQHeatmapAll(msg.q_values_all)
       setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
@@ -126,6 +129,7 @@ export default function Room2_SARSA() {
       setQHeatmap(ZERO_TABLE)
       setQHeatmapAll(null)
       setPolicy(EMPTY_POLICY)
+      setPolicyAll(null)
       setEpisodeHistory([])
       setTrajectory([])
       setAgentRC([0, 0])
@@ -195,6 +199,11 @@ export default function Room2_SARSA() {
     if (qHeatmapAll && qHeatmapAll[visitedCount]) return qHeatmapAll[visitedCount]
     return qHeatmap
   }, [qHeatmapAll, visitedCount, qHeatmap])
+
+  const displayedPolicy = useMemo(() => {
+    if (policyAll && policyAll[visitedCount]) return policyAll[visitedCount]
+    return policy
+  }, [policyAll, visitedCount, policy])
   const heatmapLabel = qHeatmapAll
     ? `max Q(s,a) — ${visitedCount} / ${qHeatmapAll.length - 1} beacons collected`
     : 'max Q(s,a) Heatmap'
@@ -226,7 +235,7 @@ export default function Room2_SARSA() {
           <Scene3D>
             <GridWorld3D
               vTable={displayedQHeatmap}
-              policy={status === 'complete' ? policy : null}
+              policy={status === 'complete' ? displayedPolicy : null}
               vents={special.slip_cells}
               traps={special.traps}
               beacons={special.beacons}
