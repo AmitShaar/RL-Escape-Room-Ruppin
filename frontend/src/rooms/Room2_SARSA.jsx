@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 import HyperparamPanel from '../components/HyperparamPanel.jsx'
 import TrainingControls from '../components/TrainingControls.jsx'
@@ -7,6 +8,7 @@ import QValueHeatmap from '../components/QValueHeatmap.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import GridWorld3D, { gridToWorld } from '../components/GridWorld3D.jsx'
+import { Text } from '@react-three/drei'
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
@@ -44,6 +46,28 @@ const DEFAULT_PARAMS = {
 }
 
 const ZERO_TABLE = Array.from({ length: 10 }, () => Array(10).fill(0))
+
+function SpinningNumber({ position, number, collected }) {
+  const ref = useRef()
+  useFrame(({ clock }) => {
+    if (ref.current) ref.current.rotation.y = clock.elapsedTime * 1.5
+  })
+  return (
+    <group ref={ref} position={position}>
+      <Text
+        fontSize={0.38}
+        color="white"
+        outlineWidth={0.06}
+        outlineColor="black"
+        anchorX="center"
+        anchorY="middle"
+        opacity={collected ? 0.3 : 1}
+      >
+        {String(number)}
+      </Text>
+    </group>
+  )
+}
 const EMPTY_POLICY = Array.from({ length: 10 }, () => Array(10).fill(-1))
 
 export default function Room2_SARSA() {
@@ -209,6 +233,17 @@ export default function Room2_SARSA() {
               beaconsVisitedCount={visitedCount}
             />
             <DogModel position={dogPos} />
+            {status === 'complete' && special.beacons.map(([r, c], idx) => {
+              const [x, , z] = gridToWorld(r, c, 0.5)
+              return (
+                <SpinningNumber
+                  key={`order-${idx}`}
+                  position={[x, 1.1, z]}
+                  number={idx + 1}
+                  collected={idx < visitedCount}
+                />
+              )
+            })}
           </Scene3D>
           <OutcomeFlash outcome={flashOutcome} />
           {status === 'training' && (
