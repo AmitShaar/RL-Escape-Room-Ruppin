@@ -15,10 +15,6 @@ class BaseRoom(ABC):
         ...
 
     @abstractmethod
-    def step(self, action):
-        ...
-
-    @abstractmethod
     async def train(self, params: dict, websocket):
         ...
 

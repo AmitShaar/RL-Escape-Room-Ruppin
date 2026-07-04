@@ -44,12 +44,6 @@ class Room4DQN(BaseRoom):
         self.episodes = 100
         self.max_steps = 200
 
-        self.online = DQNNetwork()
-        self.target = DQNNetwork()
-        self.target.load_state_dict(self.online.state_dict())
-        self.optimizer = torch.optim.Adam(self.online.parameters(), lr=self.lr)
-        self.buffer = ReplayBuffer(self.buffer_size)
-
         self.state = (START[0], START[1], 0.0, 0.0)
         self.reset()
 
@@ -238,9 +232,3 @@ class Room4DQN(BaseRoom):
             **self.map_info(),
         })
 
-    # ---------- BaseRoom interface ----------
-
-    def step(self, action):
-        next_state, reward, done = self.physics_step(self.state, action)
-        self.state = next_state
-        return next_state, reward, done

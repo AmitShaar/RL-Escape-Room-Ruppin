@@ -3,7 +3,6 @@ import { useWebSocket } from '../hooks/useWebSocket.js'
 import HyperparamPanel from '../components/HyperparamPanel.jsx'
 import TrainingControls from '../components/TrainingControls.jsx'
 import RewardChart from '../components/RewardChart.jsx'
-import LossChart from '../components/LossChart.jsx'
 import EpisodeReplay from '../components/EpisodeReplay.jsx'
 import Scene3D from '../components/Scene3D.jsx'
 import ContinuousWorld3D, { continuousToWorld } from '../components/ContinuousWorld3D.jsx'
@@ -160,7 +159,7 @@ export default function Room4_DQN() {
         </div>
 
         <RewardChart data={episodeHistory} xKey="episode" yKey="total_reward" title="Reward per episode" />
-        <LossChart data={lossHistory} />
+        <RewardChart data={lossHistory} xKey="step" yKey="loss" title="DQN loss (MSE)" color="#ff5577" />
         <EpisodeReplay trajectory={trajectory} onStepChange={onReplayStep} />
       </aside>
 

@@ -349,14 +349,3 @@ class Room1DP(BaseRoom):
                 break
         return trajectory
 
-    # ---------- BaseRoom interface ----------
-
-    def step(self, action):
-        row, col = self.agent_pos
-        state = (row, col, self.bitmask)
-        outcomes = self.transitions(state, action)
-        probs = [o[0] for o in outcomes]
-        _, nxt, reward, done = random.choices(outcomes, weights=probs, k=1)[0]
-        self.agent_pos = (nxt[0], nxt[1])
-        self.bitmask = nxt[2]
-        return nxt, reward, done

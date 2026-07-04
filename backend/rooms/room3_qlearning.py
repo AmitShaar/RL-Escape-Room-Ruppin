@@ -289,11 +289,3 @@ class Room3QLearning(BaseRoom):
             **self.map_info(),
         })
 
-    # ---------- BaseRoom interface ----------
-
-    def step(self, action):
-        row, col = self.agent_pos
-        (nr, nc, nb, _), reward, done = self.env_step(row, col, self.bitmask, action, 0, None, True)
-        self.agent_pos = (nr, nc)
-        self.bitmask = nb
-        return (nr, nc, nb), reward, done

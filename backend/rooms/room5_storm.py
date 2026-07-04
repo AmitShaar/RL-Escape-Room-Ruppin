@@ -349,10 +349,3 @@ class Room5Storm(BaseRoom):
             "runs": runs,
         })
 
-    # ---------- BaseRoom interface ----------
-
-    def step(self, action):
-        next_state, reward, done = self.physics_step(
-            self.state, action, self.preview_obstacles)
-        self.state = next_state
-        return next_state, reward, done

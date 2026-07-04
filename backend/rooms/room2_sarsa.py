@@ -243,11 +243,3 @@ class Room2SARSA(BaseRoom):
             **self.map_info(),
         })
 
-    # ---------- BaseRoom interface ----------
-
-    def step(self, action):
-        row, col = self.agent_pos
-        (nr, nc, nv), reward, done = self.env_step(row, col, self.visited, action)
-        self.agent_pos = (nr, nc)
-        self.visited = nv
-        return (nr, nc, nv), reward, done

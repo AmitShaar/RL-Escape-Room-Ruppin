@@ -192,7 +192,7 @@ export default function Room1_DP() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
-          {trajectory.length > 0 && (
+          {status === 'complete' && trajectory.length > 0 && (
             <ReplayRewardOverlay
               step={replayStepIdx}
               totalSteps={trajectory.length - 1}
