@@ -87,8 +87,8 @@ npm run dev
 
 - **מצבים:** (שורה, עמודה, אילו פינוקים כבר נאספו)
 - **תגמולים:** פינוק +5 | מלכודת-חתול −20 | יציאה +100 | צעד −0.1
-- **פרמטרים:** gamma, slip_prob, treat_reward, trap_reward, bone_reward, replay_episodes, max_steps
-- **ערכים שעבדו הכי טוב:** `gamma=0.95` — מספיק כדי לתכנן קדימה ולאסוף פינוקים, בלי להאט את ההתכנסות. `slip_prob=0.1` — מספיק אקראיות בלי להפוך את זה לבלתי נסבל. `treat_reward=5` קטן לעומת `bone_reward=100` — חיזקי לא ישב לנצח על פינוק.
+- **פרמטרים:** gamma, slip_prob, num_treats, treat_reward, trap_reward, exit_reward, theta, replay_episodes, max_steps
+- **ערכים שעבדו הכי טוב:** `gamma=0.95` — מספיק כדי לתכנן קדימה ולאסוף פינוקים, בלי להאט את ההתכנסות. `slip_prob=0.1` — מספיק אקראיות בלי להפוך את זה לבלתי נסבל. `treat_reward=5` קטן לעומת `exit_reward=100` — חיזקי לא ישב לנצח על פינוק. `theta=0.0001` — סף עצירה שמבטיח התכנסות מלאה.
 
 ---
 
@@ -104,7 +104,7 @@ npm run dev
 
 - **מצבים:** (שורה, עמודה, כמה מפתחות כבר נאספו)
 - **תגמולים:** מפתח בסדר הנכון +20 | מלכודת −15 + איפוס | יציאה +100 | צעד −0.1
-- **פרמטרים:** alpha, gamma, epsilon, episodes, max_steps
+- **פרמטרים:** alpha, gamma, epsilon, epsilon_decay, episodes, max_steps, K_beacons, slip_prob, key_reward, trap_reward, exit_reward
 - **ערכים שעבדו הכי טוב:** `alpha=0.1` — יציב, לא גורם לקפיצות. `epsilon=0.2` עם `decay=0.995` — מספיק חקירה בהתחלה לגלות את סדר המפתחות. `episodes=500` — צריך הרבה ניסיונות כדי לכסות את כל הצירופים.
 
 ---
@@ -121,8 +121,8 @@ npm run dev
 
 - **מצבים:** (שורה, עמודה, bitmask 0-7 — אילו חפצים נאספו)
 - **תגמולים:** חפץ +15 | מגע ב-X −25 + איפוס | יציאה +100 | צעד −0.1
-- **פרמטרים:** alpha, gamma, epsilon, episodes, max_steps
-- **ערכים שעבדו הכי טוב:** `episodes=500` — מרחב ה-state כאן כפול מחדר 2 (8 bitmasks). עונש X של `−25` חזק מספיק להרתעה, אבל לא כל כך גדול שחיזקי יפחד מכל תנועה.
+- **פרמטרים:** alpha, gamma, epsilon, epsilon_decay, episodes, max_steps, M_fragments, shark_speed, fragment_reward, shark_penalty, exit_reward
+- **ערכים שעבדו הכי טוב:** `episodes=500` — מרחב ה-state כאן כפול מחדר 2 (8 bitmasks). `shark_penalty=−25` חזק מספיק להרתעה, אבל לא כל כך גדול שחיזקי יפחד מכל תנועה.
 
 ---
 
@@ -142,8 +142,8 @@ https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
 - **מצבים:** (x, y, vx, vy) — ערכים רציפים
 - **תגמולים:** הגעה ליעד +100 | פגיעה בקיר −10 | כל צעד −0.05
-- **פרמטרים:** learning rate, gamma, epsilon, decay, episodes, max_steps
-- **ערכים שעבדו הכי טוב:** `gamma=0.99` גבוה יותר מהרגיל כי הסביבה רחבה. `epsilon` מתחיל ב-1.0 כי הרשת לא יודעת כלום בהתחלה — צריך לחקור לפני לנצל.
+- **פרמטרים:** learning_rate, gamma, epsilon, epsilon_decay, episodes, max_steps, batch_size, buffer_size, target_sync, exit_reward, wall_penalty, step_penalty
+- **ערכים שעבדו הכי טוב:** `gamma=0.99` גבוה יותר מהרגיל כי הסביבה רחבה. `epsilon` מתחיל ב-1.0 כי הרשת לא יודעת כלום בהתחלה — צריך לחקור לפני לנצל. `batch_size=64`, `buffer_size=10000` — איזון בין זיכרון ומהירות למידה.
 
 ---
 
@@ -159,5 +159,5 @@ https://github.com/user-attachments/assets/c23db440-875b-4eb3-86d0-3b98435a40aa
 
 - **מצבים:** (x, y, vx, vy) + מרחקים ל-K מכשולים הקרובים ביותר
 - **תגמולים:** יציאה +100 | פגיעה במכשול −20 | פגיעה בקיר −10
-- **פרמטרים:** learning rate, gamma, epsilon, N obstacles, visibility range
-- **ערכים שעבדו הכי טוב:** `N_obstacles=5` — מאתגר אבל עביר. `visibility_range=3.0` מ' — מספיק לראות ולהגיב. `episodes=300` — יותר מחדר 4 כי כל פרק מכשולים חדשים.
+- **פרמטרים:** learning_rate, gamma, epsilon, epsilon_decay, episodes, max_steps, batch_size, buffer_size, target_sync, n_obstacles, k_visible, visibility_range, obstacle_drift, drag, exit_reward, wall_penalty, obstacle_penalty, step_penalty, shaping_coef
+- **ערכים שעבדו הכי טוב:** `n_obstacles=5` — מאתגר אבל עביר. `visibility_range=3.0` מ', `k_visible=3` — חיזקי רואה את 3 המכשולים הקרובים. `shaping_coef=8` — בונוס קטן על כל צעד לכיוון היציאה שמונע "קפיאה". `episodes=300` — יותר מחדר 4 כי כל פרק מכשולים חדשים.
