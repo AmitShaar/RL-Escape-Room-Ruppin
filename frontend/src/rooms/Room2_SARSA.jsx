@@ -298,11 +298,11 @@ const styles = {
     width: '100%',
   },
   sidebar: {
-    width: '260px',
+    width: '320px',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '8px',
     overflowY: 'auto',
     borderRight: '1px solid #103252',
   },

@@ -246,8 +246,8 @@ export default function Room5_Storm() {
 const styles = {
   layout: { display: 'flex', height: '100%', width: '100%' },
   sidebar: {
-    width: '260px', padding: '14px', display: 'flex', flexDirection: 'column',
-    gap: '12px', overflowY: 'auto', borderRight: '1px solid #103252',
+    width: '320px', padding: '14px', display: 'flex', flexDirection: 'column',
+    gap: '8px', overflowY: 'auto', borderRight: '1px solid #103252',
   },
   connStatus: { fontSize: '11px', opacity: 0.6 },
   genBtn: {
