@@ -298,7 +298,7 @@ const styles = {
     width: '100%',
   },
   sidebar: {
-    width: '320px',
+    width: '260px',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
