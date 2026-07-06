@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
 import CatDanger from './CatDanger.jsx'
 import Key3D from './Key3D.jsx'
+import TennisBall from './TennisBall.jsx'
 
 export const GRID_SIZE = 10
 
@@ -187,12 +188,9 @@ export default function GridWorld3D({
 
   artifacts.forEach(([r, c], idx) => {
     if (Boolean(collectedMask & (1 << idx))) return
-    const [x, y, z] = gridToWorld(r, c, 0.52)
+    const [x, , z] = gridToWorld(r, c, 0)
     cells.push(
-      <mesh key={`artifact-${r}-${c}`} position={[x, y, z]}>
-        <sphereGeometry args={[0.28, 20, 16]} />
-        <meshStandardMaterial color="#FFD700" emissive="#cc8800" emissiveIntensity={0.9} metalness={0.4} roughness={0.3} />
-      </mesh>
+      <TennisBall key={`artifact-${r}-${c}`} position={[x, 0.52, z]} />
     )
   })
 
