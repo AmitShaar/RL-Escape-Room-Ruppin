@@ -70,8 +70,11 @@ class Room3QLearning(BaseRoom):
 
     def reset(self):
         excluded = {START, EXIT}
-        self.artifacts = self._random_cells(self.m_fragments, excluded)
+        # Generate patrol first, then exclude its cells from artifact placement
+        # so the X mark can never land on a tennis ball.
         self.patrol_cells = self._make_patrol()
+        excluded |= set(self.patrol_cells)
+        self.artifacts = self._random_cells(self.m_fragments, excluded)
 
         self.q_table = np.zeros((ROWS, COLS, 1 << self.m_fragments, 4))
 

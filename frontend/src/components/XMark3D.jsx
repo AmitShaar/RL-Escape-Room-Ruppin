@@ -13,11 +13,11 @@ export default function XMark3D({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
       <mesh rotation={[0, 0, Math.PI / 4]}>
-        <boxGeometry args={[0.14, 0.65, 0.14]} />
+        <boxGeometry args={[0.17, 0.78, 0.17]} />
         {mat}
       </mesh>
       <mesh rotation={[0, 0, -Math.PI / 4]}>
-        <boxGeometry args={[0.14, 0.65, 0.14]} />
+        <boxGeometry args={[0.17, 0.78, 0.17]} />
         {mat}
       </mesh>
     </group>
