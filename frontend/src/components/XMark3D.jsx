@@ -1,25 +1,23 @@
-// A small red X placed on danger/patrol cells in the 3D scene.
+// Bold red X placed on the patrol cell in the 3D scene.
 export default function XMark3D({ position = [0, 0, 0] }) {
   const mat = (
     <meshStandardMaterial
-      color="#dd1111"
+      color="#ee1111"
       emissive="#cc0000"
-      emissiveIntensity={0.6}
+      emissiveIntensity={1.4}
       transparent
-      opacity={0.85}
+      opacity={0.92}
     />
   )
 
   return (
     <group position={position}>
-      {/* First bar of X (rotated 45°) */}
       <mesh rotation={[0, 0, Math.PI / 4]}>
-        <boxGeometry args={[0.08, 0.42, 0.08]} />
+        <boxGeometry args={[0.14, 0.65, 0.14]} />
         {mat}
       </mesh>
-      {/* Second bar of X (rotated −45°) */}
       <mesh rotation={[0, 0, -Math.PI / 4]}>
-        <boxGeometry args={[0.08, 0.42, 0.08]} />
+        <boxGeometry args={[0.14, 0.65, 0.14]} />
         {mat}
       </mesh>
     </group>

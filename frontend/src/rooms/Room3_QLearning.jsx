@@ -208,8 +208,8 @@ export default function Room3_QLearning() {
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
   const replaySharkPos = useMemo(
-    () => sharkPosAtStep(special.shark_patrol, params.shark_speed, replayStep),
-    [special.shark_patrol, params.shark_speed, replayStep]
+    () => sharkPosAtStep(special.shark_patrol, params.x_speed, replayStep),
+    [special.shark_patrol, params.x_speed, replayStep]
   )
   const sharkPos = liveSharkPos || replaySharkPos
 
@@ -253,8 +253,8 @@ export default function Room3_QLearning() {
               <Hurricane3D position={[dogPos[0], 0, dogPos[2]]} scale={1.1} speed={9} />
             )}
             {sharkPos && (() => {
-              const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.35)
-              return <XMark3D position={[sx, 0.35, sz]} />
+              const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.45)
+              return <XMark3D position={[sx, 0.45, sz]} />
             })()}
             {bestPortal && (() => {
               const pos = gridToWorld(bestPortal[0], bestPortal[1], 0)
