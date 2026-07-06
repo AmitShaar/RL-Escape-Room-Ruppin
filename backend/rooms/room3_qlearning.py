@@ -88,14 +88,14 @@ class Room3QLearning(BaseRoom):
         self.epsilon_decay = params.get("epsilon_decay", self.epsilon_decay)
         self.episodes = params.get("episodes", self.episodes)
         self.max_steps = params.get("max_steps", self.max_steps)
-        self.shark_speed = params.get("shark_speed", self.shark_speed)
+        self.shark_speed = params.get("x_speed", params.get("shark_speed", self.shark_speed))
         new_m = params.get("M_fragments", self.m_fragments)
         if new_m != self.m_fragments:
             self.m_fragments = new_m
             self.reset()
         self.exit_reward = params.get("exit_reward", self.exit_reward)
         self.fragment_reward = params.get("fragment_reward", self.fragment_reward)
-        self.shark_penalty = params.get("shark_penalty", self.shark_penalty)
+        self.shark_penalty = params.get("x_penalty", params.get("shark_penalty", self.shark_penalty))
         self.step_penalty = params.get("step_penalty", self.step_penalty)
         # See the matching comment in room2_sarsa.py: Windows' default
         # asyncio timer granularity makes sub-~15ms sleeps essentially
