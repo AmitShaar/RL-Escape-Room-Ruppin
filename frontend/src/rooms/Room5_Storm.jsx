@@ -107,6 +107,9 @@ export default function Room5_Storm() {
     } else if (msg.type === 'generalization_result') {
       setGenResult(msg)
       setGenLoading(false)
+    } else if (msg.type === 'preview_complete') {
+      setSpecial((s) => ({ ...s, obstacles: msg.obstacles || [] }))
+      setLiveObstacles(msg.obstacles || [])
     } else if (msg.type === 'reset_complete') {
       setEpisodeHistory([])
       setLossHistory([])

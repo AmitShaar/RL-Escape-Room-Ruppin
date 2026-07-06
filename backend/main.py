@@ -88,10 +88,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 # Apply params + reset layout without starting training.
                 # Used for live visual feedback when structural params change.
                 if not (train_task and not train_task.done()):
-                    room.configure(data.get("params", {}))
-                    room.reset()
-                    info = room.map_info() if hasattr(room, "map_info") else {}
-                    await websocket.send_json({"type": "reset_complete", **info})
+                    try:
+                        room.configure(data.get("params", {}))
+                        room.reset()
+                        info = room.map_info() if hasattr(room, "map_info") else {}
+                        await websocket.send_json({"type": "preview_complete", **info})
+                    except Exception as e:
+                        await websocket.send_json({"type": "error", "message": str(e)})
 
             elif msg_type == "get_replay":
                 replay = room.get_replay(data.get("episode", 0))

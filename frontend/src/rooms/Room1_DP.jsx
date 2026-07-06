@@ -88,6 +88,8 @@ export default function Room1_DP() {
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
+    } else if (msg.type === 'preview_complete') {
+      setSpecial({ walls: msg.walls, vents: msg.vents, traps: msg.traps, treats: msg.treats, holes: msg.holes })
     } else if (msg.type === 'reset_complete') {
       setVTable(ZERO_TABLE)
       setPolicy(EMPTY_POLICY)

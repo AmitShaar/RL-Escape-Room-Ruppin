@@ -119,6 +119,8 @@ export default function Room3_QLearning() {
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
+    } else if (msg.type === 'preview_complete') {
+      setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
     } else if (msg.type === 'reset_complete') {
       setQHeatmap(ZERO_TABLE)
       setQHeatmapAll(null)

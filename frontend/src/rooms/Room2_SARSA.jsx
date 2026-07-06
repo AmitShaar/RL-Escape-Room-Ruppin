@@ -127,6 +127,8 @@ export default function Room2_SARSA() {
       sendRef.current({ type: 'get_replay', episode: msg.best_episode })
     } else if (msg.type === 'replay_data') {
       setTrajectory(msg.trajectory || [])
+    } else if (msg.type === 'preview_complete') {
+      setSpecial({ beacons: msg.beacons, slip_cells: msg.slip_cells, traps: msg.traps })
     } else if (msg.type === 'reset_complete') {
       setQHeatmap(ZERO_TABLE)
       setQHeatmapAll(null)
