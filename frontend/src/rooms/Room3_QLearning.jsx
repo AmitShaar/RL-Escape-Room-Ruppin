@@ -14,6 +14,7 @@ import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
 import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 import XMark3D from '../components/XMark3D.jsx'
+import Hurricane3D from '../components/Hurricane3D.jsx'
 
 // Trimmed to the 6 controls that matter day-to-day; fragment/shark counts
 // and reward values plus epsilon_decay stay fixed at sensible defaults
@@ -249,27 +250,27 @@ export default function Room3_QLearning() {
             />
             <DogModel position={dogPos} />
             {portalFlash && (
-              <mesh position={[dogPos[0], 0.05, dogPos[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.45, 0.08, 8, 32]} />
-                <meshStandardMaterial color="#cc44ff" emissive="#cc44ff" emissiveIntensity={3} transparent opacity={0.9} />
-              </mesh>
+              <Hurricane3D
+                position={[dogPos[0], 0, dogPos[2]]}
+                scale={1.1}
+                speed={8}
+                color="#cc44ff"
+                emissive="#aa00ff"
+                emissiveIntensity={3}
+              />
             )}
             {sharkPos && (() => {
               const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.35)
               return <XMark3D position={[sx, 0.35, sz]} />
             })()}
-            {bestPortal && (
-              <mesh position={gridToWorld(bestPortal[0], bestPortal[1], 0.45)}>
-                <sphereGeometry args={[0.22, 14, 10]} />
-                <meshStandardMaterial color="#aa44ff" emissive="#aa44ff" emissiveIntensity={1.5} transparent opacity={0.85} />
-              </mesh>
-            )}
-            {bestPortalDest && (
-              <mesh position={gridToWorld(bestPortalDest[0], bestPortalDest[1], 0.45)}>
-                <sphereGeometry args={[0.18, 14, 10]} />
-                <meshStandardMaterial color="#dd88ff" emissive="#dd88ff" emissiveIntensity={1.0} transparent opacity={0.7} />
-              </mesh>
-            )}
+            {bestPortal && (() => {
+              const pos = gridToWorld(bestPortal[0], bestPortal[1], 0)
+              return <Hurricane3D position={[pos[0], 0, pos[2]]} speed={3} color="#9955ff" emissive="#6622cc" />
+            })()}
+            {bestPortalDest && (() => {
+              const pos = gridToWorld(bestPortalDest[0], bestPortalDest[1], 0)
+              return <Hurricane3D position={[pos[0], 0, pos[2]]} scale={0.7} speed={-2} color="#cc88ff" emissive="#9944cc" emissiveIntensity={1.0} />
+            })()}
           </Scene3D>
           <OutcomeFlash outcome={flashOutcome} />
           {status === 'training' && (
