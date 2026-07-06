@@ -154,7 +154,7 @@ export default function Room3_QLearning() {
   const onParamChange = (key, value) => {
     const newParams = { ...params, [key]: value }
     setParams(newParams)
-    if (key === 'M_fragments' && status === 'idle') {
+    if (key === 'M_fragments' && status !== 'training') {
       clearTimeout(previewDebounceRef.current)
       previewDebounceRef.current = setTimeout(() => {
         sendRef.current({ type: 'configure_preview', params: newParams })

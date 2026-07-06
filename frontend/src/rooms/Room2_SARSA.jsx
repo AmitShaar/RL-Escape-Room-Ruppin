@@ -158,7 +158,7 @@ export default function Room2_SARSA() {
   const onParamChange = (key, value) => {
     const newParams = { ...params, [key]: value }
     setParams(newParams)
-    if (key === 'K_beacons' && status === 'idle') {
+    if (key === 'K_beacons' && status !== 'training') {
       clearTimeout(previewDebounceRef.current)
       previewDebounceRef.current = setTimeout(() => {
         sendRef.current({ type: 'configure_preview', params: newParams })

@@ -115,7 +115,7 @@ export default function Room1_DP() {
   const onParamChange = (key, value) => {
     const newParams = { ...params, [key]: value }
     setParams(newParams)
-    if (key === 'num_treats' && status === 'idle') {
+    if (key === 'num_treats' && status !== 'training') {
       clearTimeout(previewDebounceRef.current)
       previewDebounceRef.current = setTimeout(() => {
         sendRef.current({ type: 'configure_preview', params: newParams })

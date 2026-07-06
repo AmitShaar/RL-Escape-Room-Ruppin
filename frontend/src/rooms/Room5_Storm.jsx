@@ -137,7 +137,7 @@ export default function Room5_Storm() {
   const onParamChange = (key, value) => {
     const newParams = { ...params, [key]: value }
     setParams(newParams)
-    if (key === 'n_obstacles' && status === 'idle') {
+    if (key === 'n_obstacles' && status !== 'training') {
       clearTimeout(previewDebounceRef.current)
       previewDebounceRef.current = setTimeout(() => {
         sendRef.current({ type: 'configure_preview', params: newParams })
