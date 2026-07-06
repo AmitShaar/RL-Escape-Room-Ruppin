@@ -150,7 +150,17 @@ export default function Room3_QLearning() {
     sendRef.current = send
   }, [send])
 
-  const onParamChange = (key, value) => setParams((p) => ({ ...p, [key]: value }))
+  const previewDebounceRef = useRef(null)
+  const onParamChange = (key, value) => {
+    const newParams = { ...params, [key]: value }
+    setParams(newParams)
+    if (key === 'M_fragments' && status === 'idle') {
+      clearTimeout(previewDebounceRef.current)
+      previewDebounceRef.current = setTimeout(() => {
+        sendRef.current({ type: 'configure_preview', params: newParams })
+      }, 400)
+    }
+  }
 
   const onStart = () => {
     setEpisodeHistory([])

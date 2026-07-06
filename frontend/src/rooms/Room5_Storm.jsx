@@ -133,7 +133,17 @@ export default function Room5_Storm() {
   const { send, connected } = useWebSocket(5, handleMessage)
   useEffect(() => { sendRef.current = send }, [send])
 
-  const onParamChange = (key, value) => setParams((p) => ({ ...p, [key]: value }))
+  const previewDebounceRef = useRef(null)
+  const onParamChange = (key, value) => {
+    const newParams = { ...params, [key]: value }
+    setParams(newParams)
+    if (key === 'n_obstacles' && status === 'idle') {
+      clearTimeout(previewDebounceRef.current)
+      previewDebounceRef.current = setTimeout(() => {
+        sendRef.current({ type: 'configure_preview', params: newParams })
+      }, 400)
+    }
+  }
 
   const onStart = () => {
     setEpisodeHistory([])

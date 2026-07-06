@@ -84,6 +84,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 info = room.map_info() if hasattr(room, "map_info") else {}
                 await websocket.send_json({"type": "reset_complete", **info})
 
+            elif msg_type == "configure_preview":
+                # Apply params + reset layout without starting training.
+                # Used for live visual feedback when structural params change.
+                if not (train_task and not train_task.done()):
+                    room.configure(data.get("params", {}))
+                    room.reset()
+                    info = room.map_info() if hasattr(room, "map_info") else {}
+                    await websocket.send_json({"type": "reset_complete", **info})
+
             elif msg_type == "get_replay":
                 replay = room.get_replay(data.get("episode", 0))
                 await websocket.send_json({"type": "replay_data", **replay})
