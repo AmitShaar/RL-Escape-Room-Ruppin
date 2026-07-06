@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
 import CatDanger from './CatDanger.jsx'
 import Key3D from './Key3D.jsx'
-import TennisBall from './TennisBall.jsx'
+import Steak3D from './Steak3D.jsx'
 
 export const GRID_SIZE = 10
 
@@ -190,7 +190,7 @@ export default function GridWorld3D({
     if (Boolean(collectedMask & (1 << idx))) return
     const [x, , z] = gridToWorld(r, c, 0)
     cells.push(
-      <TennisBall key={`artifact-${r}-${c}`} position={[x, 0.52, z]} />
+      <Steak3D key={`artifact-${r}-${c}`} position={[x, 0.28, z]} />
     )
   })
 
