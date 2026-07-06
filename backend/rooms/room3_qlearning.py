@@ -234,7 +234,7 @@ class Room3QLearning(BaseRoom):
 
     async def train(self, params: dict, websocket):
         self.configure(params)
-        self.q_table = np.zeros((ROWS, COLS, 1 << self.m_fragments, 4))
+        self.reset()   # regenerate patrol + artifacts every training run
         self.stop_requested = False
         epsilon = self.epsilon
         portal_first_episode = None
