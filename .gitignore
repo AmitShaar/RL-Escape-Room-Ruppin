@@ -6,3 +6,4 @@ frontend/node_modules/
 frontend/dist/
 frontend/frontend.log
 .DS_Store
+frontend/capture.mjs

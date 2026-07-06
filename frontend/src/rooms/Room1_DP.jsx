@@ -116,9 +116,7 @@ export default function Room1_DP() {
   const onStart = () => {
     setDeltaHistory([])
     setStatus('training')
-    // The backend's field is still named exit_reward; bone_reward is just
-    // the UI-facing name for the same value.
-    send({ type: 'start_training', params: { ...params, exit_reward: params.bone_reward } })
+    send({ type: 'start_training', params })
   }
   const onPause = () => {
     setStatus('paused')

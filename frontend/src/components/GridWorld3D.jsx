@@ -211,16 +211,6 @@ export default function GridWorld3D({
     cells.push(<Bone key="bone-exit" position={[bx, by, bz]} />)
   }
 
-  if (sharkPos) {
-    const [sx, sy, sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.3)
-    cells.push(
-      <mesh key="shark" position={[sx, sy, sz]} rotation={[0, 0, Math.PI / 2]}>
-        <coneGeometry args={[0.3, 0.7, 8]} />
-        <meshStandardMaterial color="#ff3344" emissive="#ff3344" emissiveIntensity={0.6} />
-      </mesh>
-    )
-  }
-
   return (
     <group>
       {cells}

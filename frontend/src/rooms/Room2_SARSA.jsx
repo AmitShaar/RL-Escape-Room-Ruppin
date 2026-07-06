@@ -16,10 +16,6 @@ import EpisodeCounterOverlay from '../components/EpisodeCounterOverlay.jsx'
 import OutcomeFlash from '../components/OutcomeFlash.jsx'
 import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
-// Trimmed to the 6 controls that matter day-to-day; slip/beacon-count/
-// reward values and epsilon_decay stay fixed at sensible defaults below
-// instead of being exposed (still sent to the backend unchanged, so
-// training behavior is identical to before - just not user-editable).
 const SCHEMA = [
   { key: 'alpha', label: 'Alpha (learning rate)', min: 0.01, max: 1.0, step: 0.01 },
   { key: 'gamma', label: 'Gamma (discount)', min: 0.1, max: 0.99, step: 0.01 },

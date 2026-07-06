@@ -10,13 +10,7 @@ import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
 
-// Matches the backend's hardcoded ReplayBuffer size (Room4DQN.buffer_size),
-// since that slider is no longer exposed in the UI but the buffer-fill
-// display still needs a capacity to show before the first step_update.
 const DEFAULT_BUFFER_CAPACITY = 10000
-
-// Velocity is now discrete {-1,0,1} per spec (no drag/accumulation).
-// batch_size, buffer_size, and target_sync stay fixed at backend defaults.
 const SCHEMA = [
   { key: 'learning_rate', label: 'LR (learning rate)', min: 0.0001, max: 0.01, step: 0.0001 },
   { key: 'gamma', label: 'Gamma', min: 0.8, max: 0.999, step: 0.01 },

@@ -11,7 +11,6 @@ START = (0, 0)
 EXIT = (9, 9)
 
 ACTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-ACTION_NAMES = ["UP", "DOWN", "LEFT", "RIGHT"]
 
 
 class Room3QLearning(BaseRoom):
