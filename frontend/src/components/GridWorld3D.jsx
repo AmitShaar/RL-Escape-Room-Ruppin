@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import Bone from './Bone.jsx'
 import CatDanger from './CatDanger.jsx'
@@ -190,7 +190,9 @@ export default function GridWorld3D({
     if (Boolean(collectedMask & (1 << idx))) return
     const [x, , z] = gridToWorld(r, c, 0)
     cells.push(
-      <Steak3D key={`artifact-${r}-${c}`} position={[x, 0.28, z]} />
+      <Suspense key={`artifact-${r}-${c}`} fallback={null}>
+        <Steak3D position={[x, 0.28, z]} />
+      </Suspense>
     )
   })
 
