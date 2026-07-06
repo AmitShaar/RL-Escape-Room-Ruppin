@@ -178,6 +178,9 @@ export default function Room3_QLearning() {
     [params.exit_reward]
   )
 
+  const [portalFlash, setPortalFlash] = useState(false)
+  const portalFlashRef = useRef(null)
+
   const onReplayStep = useCallback(
     (step) => {
       const point = trajectory[step]
@@ -186,6 +189,11 @@ export default function Room3_QLearning() {
       setCollectedMask(mask)
       setReplayStep(step)
       if (qHeatmapAll && qHeatmapAll[mask]) setQHeatmap(qHeatmapAll[mask])
+      if (point?.portal_entry) {
+        setPortalFlash(true)
+        clearTimeout(portalFlashRef.current)
+        portalFlashRef.current = setTimeout(() => setPortalFlash(false), 600)
+      }
     },
     [trajectory, qHeatmapAll]
   )
@@ -240,6 +248,12 @@ export default function Room3_QLearning() {
               sharkPos={null}
             />
             <DogModel position={dogPos} />
+            {portalFlash && (
+              <mesh position={[dogPos[0], 0.05, dogPos[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.45, 0.08, 8, 32]} />
+                <meshStandardMaterial color="#cc44ff" emissive="#cc44ff" emissiveIntensity={3} transparent opacity={0.9} />
+              </mesh>
+            )}
             {sharkPos && (() => {
               const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.35)
               return <XMark3D position={[sx, 0.35, sz]} />

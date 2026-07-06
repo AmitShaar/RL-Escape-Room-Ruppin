@@ -186,13 +186,20 @@ class Room3QLearning(BaseRoom):
         for step in range(self.max_steps):
             action = self.epsilon_greedy(self.q_table, row, col, bitmask, epsilon)
             (nr, nc, nb, nu), reward, done = self.env_step(row, col, bitmask, action, step, portal_pos, portal_used)
-            if nu and not portal_used:
+            portal_just_fired = nu and not portal_used
+            if portal_just_fired:
                 portal_discovered = True
             portal_used = nu
 
             best_next = 0.0 if done else np.max(self.q_table[nr, nc, nb])
             td_target = reward if done else reward + self.gamma * best_next
             self.q_table[row, col, bitmask, action] += self.alpha * (td_target - self.q_table[row, col, bitmask, action])
+
+            if portal_just_fired:
+                # Insert a frame at the portal entry cell so the replay shows
+                # the agent stepping ON the portal before teleporting.
+                entry_r, entry_c = self._intended_next(row, col, action)
+                trajectory.append({"pos": [entry_r, entry_c], "reward": 0.0, "bitmask": bitmask, "portal_entry": True})
 
             row, col, bitmask = nr, nc, nb
             trajectory.append({"pos": [row, col], "reward": reward, "bitmask": bitmask})
