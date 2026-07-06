@@ -1,24 +1,12 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 
-// Rings from bottom (narrow) to top (wide) — each slightly twisted
-// so when the parent group rotates they form a continuous spiral.
-const RINGS = [
-  { y: 0.04, r: 0.07, t: 0.018 },
-  { y: 0.15, r: 0.13, t: 0.025 },
-  { y: 0.27, r: 0.19, t: 0.032 },
-  { y: 0.41, r: 0.26, t: 0.040 },
-  { y: 0.56, r: 0.33, t: 0.050 },
-  { y: 0.70, r: 0.40, t: 0.058 },
-]
-
+// Tornado: a funnel cone (wide at top, tip at bottom) with a wireframe
+// overlay that creates a swirling-grid illusion as it spins.
 export default function Hurricane3D({
   position = [0, 0, 0],
   scale = 1,
   speed = 3,
-  color = '#8866ff',
-  emissive = '#5533cc',
-  emissiveIntensity = 1.5,
 }) {
   const ref = useRef()
   useFrame(({ clock }) => {
@@ -27,29 +15,53 @@ export default function Hurricane3D({
 
   return (
     <group ref={ref} position={position} scale={scale}>
-      {/* Tip — tiny cone at the very bottom */}
-      <mesh position={[0, 0.02, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.05, 0.07, 10]} />
-        <meshStandardMaterial color={color} emissive={emissive} emissiveIntensity={emissiveIntensity + 0.5} />
+      {/* Funnel body — solid, semi-transparent gray-blue */}
+      <mesh position={[0, 0.42, 0]}>
+        <cylinderGeometry args={[0.38, 0.03, 0.84, 20, 1, true]} />
+        <meshStandardMaterial
+          color="#7799bb"
+          emissive="#334466"
+          emissiveIntensity={1.2}
+          transparent
+          opacity={0.55}
+          side={2}
+        />
       </mesh>
 
-      {/* Stacked rings, each slightly twisted to form a spiral */}
-      {RINGS.map(({ y, r, t }, i) => (
-        <mesh
-          key={i}
-          position={[0, y, 0]}
-          rotation={[-Math.PI / 2, 0, (i * Math.PI) / RINGS.length]}
-        >
-          <torusGeometry args={[r, t, 8, 30]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={emissive}
-            emissiveIntensity={emissiveIntensity}
-            transparent
-            opacity={0.72 + i * 0.04}
-          />
-        </mesh>
-      ))}
+      {/* Wireframe overlay — grid lines spin → swirl illusion */}
+      <mesh position={[0, 0.42, 0]}>
+        <cylinderGeometry args={[0.40, 0.045, 0.87, 16, 10, true]} />
+        <meshStandardMaterial
+          color="#aabbdd"
+          wireframe
+          transparent
+          opacity={0.40}
+        />
+      </mesh>
+
+      {/* Dust disc at the base */}
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.0, 0.48, 28]} />
+        <meshStandardMaterial
+          color="#889aaa"
+          emissive="#334455"
+          emissiveIntensity={0.7}
+          transparent
+          opacity={0.35}
+        />
+      </mesh>
+
+      {/* Cap ring at the top (cloud base) */}
+      <mesh position={[0, 0.87, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.30, 0.08, 10, 24]} />
+        <meshStandardMaterial
+          color="#aabbcc"
+          emissive="#556677"
+          emissiveIntensity={1.2}
+          transparent
+          opacity={0.85}
+        />
+      </mesh>
     </group>
   )
 }

@@ -250,14 +250,7 @@ export default function Room3_QLearning() {
             />
             <DogModel position={dogPos} />
             {portalFlash && (
-              <Hurricane3D
-                position={[dogPos[0], 0, dogPos[2]]}
-                scale={1.1}
-                speed={8}
-                color="#cc44ff"
-                emissive="#aa00ff"
-                emissiveIntensity={3}
-              />
+              <Hurricane3D position={[dogPos[0], 0, dogPos[2]]} scale={1.1} speed={9} />
             )}
             {sharkPos && (() => {
               const [sx, , sz] = gridToWorld(sharkPos[0], sharkPos[1], 0.35)
@@ -265,11 +258,11 @@ export default function Room3_QLearning() {
             })()}
             {bestPortal && (() => {
               const pos = gridToWorld(bestPortal[0], bestPortal[1], 0)
-              return <Hurricane3D position={[pos[0], 0, pos[2]]} speed={3} color="#9955ff" emissive="#6622cc" />
+              return <Hurricane3D position={[pos[0], 0, pos[2]]} speed={3} />
             })()}
             {bestPortalDest && (() => {
               const pos = gridToWorld(bestPortalDest[0], bestPortalDest[1], 0)
-              return <Hurricane3D position={[pos[0], 0, pos[2]]} scale={0.7} speed={-2} color="#cc88ff" emissive="#9944cc" emissiveIntensity={1.0} />
+              return <Hurricane3D position={[pos[0], 0, pos[2]]} scale={0.65} speed={-2} />
             })()}
           </Scene3D>
           <OutcomeFlash outcome={flashOutcome} />
