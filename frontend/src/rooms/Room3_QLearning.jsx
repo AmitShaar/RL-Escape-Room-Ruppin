@@ -60,8 +60,9 @@ export default function Room3_QLearning() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [qHeatmap, setQHeatmap] = useState(ZERO_TABLE)
-  const [qHeatmapAll, setQHeatmapAll] = useState(null)  // all 8 bitmask slices
+  const [qHeatmapAll, setQHeatmapAll] = useState(null)
   const [policy, setPolicy] = useState(EMPTY_POLICY)
+  const [policyAll, setPolicyAll] = useState(null)
   const [special, setSpecial] = useState({ artifacts: [], shark_patrol: [] })
   const [episodeHistory, setEpisodeHistory] = useState([])
   const [trajectory, setTrajectory] = useState([])
@@ -102,6 +103,7 @@ export default function Room3_QLearning() {
       flashTimeoutRef.current = setTimeout(() => setFlashOutcome(null), 300)
     } else if (msg.type === 'training_complete') {
       setPolicy(msg.policy)
+      if (msg.policy_all) setPolicyAll(msg.policy_all)
       setQHeatmap(msg.q_values)
       if (msg.q_values_all) setQHeatmapAll(msg.q_values_all)
       setSpecial({ artifacts: msg.artifacts, shark_patrol: msg.shark_patrol })
@@ -121,6 +123,7 @@ export default function Room3_QLearning() {
       setQHeatmap(ZERO_TABLE)
       setQHeatmapAll(null)
       setPolicy(EMPTY_POLICY)
+      setPolicyAll(null)
       setEpisodeHistory([])
       setTrajectory([])
       setAgentRC([0, 0])
@@ -201,6 +204,11 @@ export default function Room3_QLearning() {
     ? `max Q(s,a) — bitmask ${replayBitmask} (${replayBitmask.toString(2).padStart(3, '0')})`
     : 'max Q(s,a) Heatmap'
 
+  const displayedPolicy = useMemo(() => {
+    if (policyAll && policyAll[collectedMask]) return policyAll[collectedMask]
+    return policy
+  }, [policyAll, collectedMask, policy])
+
   const displayRC = liveAgentPos || agentRC
   const dogPos = useMemo(() => gridToWorld(displayRC[0], displayRC[1], 0.4), [displayRC])
   const replaySharkPos = useMemo(
@@ -239,7 +247,7 @@ export default function Room3_QLearning() {
           <Scene3D>
             <GridWorld3D
               vTable={qHeatmap}
-              policy={status === 'complete' ? policy : null}
+              policy={status === 'complete' ? displayedPolicy : null}
               artifacts={special.artifacts}
               collectedMask={collectedMask}
               sharkPos={null}

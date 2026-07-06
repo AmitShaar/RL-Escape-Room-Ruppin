@@ -287,6 +287,10 @@ class Room3QLearning(BaseRoom):
             "best_episode": best_episode,
             "best_reward": episode_rewards.get(best_episode, 0.0),
             "policy": np.argmax(self.q_table[:, :, 0, :], axis=-1).tolist(),
+            "policy_all": [
+                np.argmax(self.q_table[:, :, b, :], axis=-1).tolist()
+                for b in range(1 << self.m_fragments)
+            ],
             "q_values": np.max(self.q_table[:, :, 0, :], axis=-1).tolist(),
             "q_values_all": [
                 np.max(self.q_table[:, :, b, :], axis=-1).tolist()
