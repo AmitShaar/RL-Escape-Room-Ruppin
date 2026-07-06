@@ -186,13 +186,12 @@ export default function GridWorld3D({
   })
 
   artifacts.forEach(([r, c], idx) => {
-    const collected = Boolean(collectedMask & (1 << idx))
-    const color = collected ? '#5577aa' : '#ffd54a'
-    const [x, y, z] = gridToWorld(r, c, 0.5)
+    if (Boolean(collectedMask & (1 << idx))) return
+    const [x, y, z] = gridToWorld(r, c, 0.52)
     cells.push(
-      <mesh key={`artifact-${r}-${c}`} position={[x, y, z]} rotation={[0, Math.PI / 4, 0]}>
-        <octahedronGeometry args={[0.22, 0]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={collected ? 0.15 : 0.8} />
+      <mesh key={`artifact-${r}-${c}`} position={[x, y, z]}>
+        <sphereGeometry args={[0.28, 20, 16]} />
+        <meshStandardMaterial color="#FFD700" emissive="#cc8800" emissiveIntensity={0.9} metalness={0.4} roughness={0.3} />
       </mesh>
     )
   })
