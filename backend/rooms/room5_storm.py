@@ -18,7 +18,9 @@ START = (1.0, 1.0)
 EXIT_CENTER = (9.0, 9.0)
 EXIT_RADIUS = 0.5
 DT = 0.02
-OBSTACLE_RADIUS = 0.25          # diameter = 0.5 m, matching spec
+OBSTACLE_RADIUS = 0.25          # obstacle half-width = 0.5 m diameter, per spec
+AGENT_RADIUS   = 0.25          # visual body radius of the agent
+COLLISION_DIST = OBSTACLE_RADIUS + AGENT_RADIUS  # collision when edges touch
 VELOCITY_NORM = 10.0
 
 ACTIONS9 = [(tx, ty) for tx in (-1, 0, 1) for ty in (-1, 0, 1)]
@@ -190,8 +192,10 @@ class Room5Storm(BaseRoom):
         shaping = self.shaping_coef * (dist_before - dist_after)
 
         for ox, oy, _, _ in obstacles:
-            if math.hypot(nx - ox, ny - oy) <= OBSTACLE_RADIUS:
-                return (nx, ny, vx, vy), self.obstacle_penalty + shaping, True
+            if math.hypot(nx - ox, ny - oy) <= COLLISION_DIST:
+                # Return pre-collision position so replay never shows the agent
+                # visually inside an obstacle.
+                return (x, y, 0.0, 0.0), self.obstacle_penalty + shaping, True
 
         if dist_after <= EXIT_RADIUS:
             return (nx, ny, vx, vy), self.exit_reward + shaping, True

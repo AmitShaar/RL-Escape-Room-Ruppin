@@ -18,12 +18,14 @@ SIZE = 10.0
 START = (1.0, 1.0)
 EXIT_CENTER = (9.0, 9.0)
 EXIT_RADIUS = 0.5
+DT = 0.02        # simulation timestep — player decides direction every 0.02 s (per spec)
+SPEED = 50.0     # units/second; at max speed: 50 * 0.02 = 1 unit per step
 
 ACTIONS9 = [(tx, ty) for tx in (-1, 0, 1) for ty in (-1, 0, 1)]
 
 
-# Velocity is strictly discrete: vx, vy ∈ {-1, 0, 1} (the action IS the
-# velocity — no accumulation, no drag). Already in NN-friendly range.
+# Velocity is strictly discrete: vx, vy ∈ {-1, 0, 1} (per spec).
+# Each step represents DT seconds; displacement = v * SPEED * DT = v units.
 def normalize_state(x, y, vx, vy):
     return [(x / SIZE) * 2 - 1, (y / SIZE) * 2 - 1, float(vx), float(vy)]
 
@@ -86,10 +88,11 @@ class Room4DQN(BaseRoom):
     def physics_step(self, state, action_idx):
         x, y, _vx, _vy = state
         tx, ty = ACTIONS9[action_idx]
-        # Velocity IS the action — no accumulation, no drag.
-        vx, vy = tx, ty
-        nx = x + vx          # one unit per timestep at max speed
-        ny = y + vy
+        # Velocity is discrete {-1, 0, 1}; each step = DT seconds.
+        # Displacement = v * SPEED * DT = v * 50 * 0.02 = v units/step.
+        vx, vy = float(tx), float(ty)
+        nx = x + vx * SPEED * DT
+        ny = y + vy * SPEED * DT
 
         hit_wall = nx < 0 or nx > SIZE or ny < 0 or ny > SIZE
         nx = min(SIZE, max(0.0, nx))
