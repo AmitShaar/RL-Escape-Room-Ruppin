@@ -24,13 +24,6 @@ export default function ContinuousWorld3D({
     return { dir: new THREE.Vector3(vx, 0, vy).normalize(), length: Math.min(2, mag * 0.3) }
   }, [velocity])
 
-  const windArrow = useMemo(() => {
-    const [wx, wy] = wind
-    const mag = Math.hypot(wx, wy)
-    if (mag < 0.02) return null
-    const scale = mag / 0.6  // 0.6 = WIND_MAX in backend
-    return { dir: new THREE.Vector3(wx, 0, wy).normalize(), length: 1.5 + scale * 2.0 }
-  }, [wind])
 
   const [ax, ay, az] = continuousToWorld(agentPos[0], agentPos[1], 0.4)
 
@@ -63,19 +56,6 @@ export default function ContinuousWorld3D({
         <arrowHelper args={[arrowDir.dir, new THREE.Vector3(ax, ay, az), arrowDir.length, 0xaee4ff, arrowDir.length * 0.3, arrowDir.length * 0.2]} />
       )}
 
-      {/* Wind arrow — rendered at room centre, white-blue, shows drift direction */}
-      {windArrow && (
-        <arrowHelper
-          args={[
-            windArrow.dir,
-            new THREE.Vector3(0, 0.5, 0),
-            windArrow.length,
-            0x88ccff,
-            windArrow.length * 0.25,
-            windArrow.length * 0.18,
-          ]}
-        />
-      )}
     </group>
   )
 }

@@ -153,6 +153,17 @@ export default function Room4_DQN() {
   const dogPos = useMemo(() => continuousToWorld(displayXY[0], displayXY[1], 0.4), [displayXY])
   const bufferPct = bufferFill.capacity ? Math.min(100, (bufferFill.size / bufferFill.capacity) * 100) : 0
 
+  const windLabel = useMemo(() => {
+    const [wx, wy] = wind
+    const mag = Math.hypot(wx, wy)
+    if (mag < 0.02) return null
+    const deg = Math.round(Math.atan2(wy, wx) * 180 / Math.PI)
+    const pct = Math.round((mag / 0.6) * 100)
+    const arrows = ['→','↗','↑','↖','←','↙','↓','↘']
+    const idx = Math.round(((deg + 360) % 360) / 45) % 8
+    return `${arrows[idx]} Wind ${pct}%`
+  }, [wind])
+
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
@@ -188,6 +199,9 @@ export default function Room4_DQN() {
             />
             <DogModel position={dogPos} />
           </Scene3D>
+          {windLabel && (
+            <div style={styles.windBadge}>{windLabel}</div>
+          )}
         </div>
       </main>
     </div>
@@ -242,5 +256,19 @@ const styles = {
   sceneWrap: {
     flex: 1,
     minWidth: 0,
+    position: 'relative',
+  },
+  windBadge: {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    background: 'rgba(0,30,60,0.75)',
+    border: '1px solid #4488cc',
+    borderRadius: '6px',
+    padding: '5px 10px',
+    fontSize: '13px',
+    color: '#88ccff',
+    fontFamily: 'monospace',
+    pointerEvents: 'none',
   },
 }
