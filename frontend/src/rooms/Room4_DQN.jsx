@@ -24,6 +24,7 @@ const SCHEMA = [
   { key: 'exit_reward', label: 'Exit reward', min: 10, max: 200, step: 10 },
   { key: 'wall_penalty', label: 'Wall penalty', min: -30, max: -1, step: 1 },
   { key: 'step_penalty', label: 'Step penalty', min: -0.5, max: 0, step: 0.05 },
+  { key: 'wind_strength', label: 'Wind strength (0=off)', min: 0, max: 1.0, step: 0.1 },
 ]
 
 const DEFAULT_PARAMS = {
@@ -39,12 +40,14 @@ const DEFAULT_PARAMS = {
   exit_reward: 100,
   wall_penalty: -10,
   step_penalty: -0.05,
+  wind_strength: 0.4,
 }
 
 export default function Room4_DQN() {
   const [params, setParams] = useState(DEFAULT_PARAMS)
   const [status, setStatus] = useState('idle')
   const [special, setSpecial] = useState({ start: [1, 1], exit_center: [9, 9], exit_radius: 0.5 })
+  const [wind, setWind] = useState([0, 0])
   const [episodeHistory, setEpisodeHistory] = useState([])
   const [lossHistory, setLossHistory] = useState([])
   const [bufferFill, setBufferFill] = useState({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
@@ -62,9 +65,11 @@ export default function Room4_DQN() {
   const handleMessage = useCallback((msg) => {
     if (msg.type === 'room_info') {
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius })
+      if (msg.wind) setWind(msg.wind)
     } else if (msg.type === 'step_update') {
       setLiveAgentXY(msg.agent_pos)
       setLiveVelocity(msg.velocity || [0, 0])
+      if (msg.wind) setWind(msg.wind)
       if (msg.loss != null) {
         lossStepRef.current += 1
         setLossHistory((prev) => [...prev.slice(-300), { step: lossStepRef.current, loss: msg.loss }])
@@ -95,6 +100,7 @@ export default function Room4_DQN() {
       setLiveVelocity([0, 0])
       setBestReward(null)
       setBestEpisode(null)
+      setWind([0, 0])
       setStatus('idle')
       setSpecial({ start: msg.start, exit_center: msg.exit_center, exit_radius: msg.exit_radius })
     } else if (msg.type === 'error') {
@@ -132,6 +138,7 @@ export default function Room4_DQN() {
       const prev = trajectory[step - 1]
       if (!point) return
       setAgentXY(point.pos)
+      if (point.wind) setWind(point.wind)
       if (prev) {
         setVelocity([(point.pos[0] - prev.pos[0]) * 50, (point.pos[1] - prev.pos[1]) * 50])
       } else {
@@ -177,6 +184,7 @@ export default function Room4_DQN() {
               velocity={displayVelocity}
               exitCenter={special.exit_center}
               exitRadius={special.exit_radius}
+              wind={wind}
             />
             <DogModel position={dogPos} />
           </Scene3D>

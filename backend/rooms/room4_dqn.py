@@ -1,5 +1,6 @@
 import asyncio
 import math
+import random
 
 import numpy as np
 import torch
@@ -10,8 +11,6 @@ from .base_room import BaseRoom
 from models.dqn_network import DQNNetwork
 from replay_buffer import ReplayBuffer
 
-# Tiny MLP, batch 64: single-threaded avoids per-op thread-dispatch overhead
-# that otherwise dominates runtime on small tensors (~1.7x faster measured).
 torch.set_num_threads(1)
 
 SIZE = 10.0
@@ -20,18 +19,22 @@ EXIT_CENTER = (9.0, 9.0)
 EXIT_RADIUS = 0.5
 DT = 0.02        # simulation timestep — player decides direction every 0.02 s (per spec)
 SPEED = 50.0     # units/second; at max speed: 50 * 0.02 = 1 unit per step
+WIND_MAX = 0.6   # max wind drift in units/step (60% of max agent speed)
 
 ACTIONS9 = [(tx, ty) for tx in (-1, 0, 1) for ty in (-1, 0, 1)]
 
+STATE_DIM = 6    # (x, y, vx, vy, wind_x_norm, wind_y_norm)
 
-# Velocity is strictly discrete: vx, vy ∈ {-1, 0, 1} (per spec).
-# Each step represents DT seconds; displacement = v * SPEED * DT = v units.
-def normalize_state(x, y, vx, vy):
-    return [(x / SIZE) * 2 - 1, (y / SIZE) * 2 - 1, float(vx), float(vy)]
+
+def normalize_state(x, y, vx, vy, wind_x=0.0, wind_y=0.0):
+    """Normalise to [-1,1]. Wind components are already in [-WIND_MAX, WIND_MAX]."""
+    wx = wind_x / WIND_MAX if WIND_MAX > 0 else 0.0
+    wy = wind_y / WIND_MAX if WIND_MAX > 0 else 0.0
+    return [(x / SIZE) * 2 - 1, (y / SIZE) * 2 - 1, float(vx), float(vy), wx, wy]
 
 
 class Room4DQN(BaseRoom):
-    """Deep Trench room: continuous physics navigated via a DQN agent."""
+    """Deep Trench room: continuous physics with wind drift, navigated via DQN."""
 
     def __init__(self):
         super().__init__()
@@ -48,19 +51,22 @@ class Room4DQN(BaseRoom):
         self.exit_reward = 100.0
         self.wall_penalty = -10.0
         self.step_penalty = -0.05
+        self.wind_strength = 0.4   # fraction of WIND_MAX; 0 = no wind
 
+        self.wind_x = 0.0
+        self.wind_y = 0.0
         self.state = (START[0], START[1], 0.0, 0.0)
         self.reset()
 
-    # ---------- environment setup ----------
-
     def reset(self):
-        self.online = DQNNetwork()
-        self.target = DQNNetwork()
+        self.online = DQNNetwork(state_dim=STATE_DIM)
+        self.target = DQNNetwork(state_dim=STATE_DIM)
         self.target.load_state_dict(self.online.state_dict())
         self.optimizer = torch.optim.Adam(self.online.parameters(), lr=self.lr)
         self.buffer = ReplayBuffer(self.buffer_size)
         self.state = (START[0], START[1], 0.0, 0.0)
+        self.wind_x = 0.0
+        self.wind_y = 0.0
         self.stop_requested = False
         self.paused = False
         return self.state
@@ -79,20 +85,32 @@ class Room4DQN(BaseRoom):
         self.exit_reward = params.get("exit_reward", self.exit_reward)
         self.wall_penalty = params.get("wall_penalty", self.wall_penalty)
         self.step_penalty = params.get("step_penalty", self.step_penalty)
+        self.wind_strength = params.get("wind_strength", self.wind_strength)
+
+    def _new_wind(self):
+        """Random wind vector for this episode, magnitude in [0, wind_strength * WIND_MAX]."""
+        if self.wind_strength <= 0:
+            return 0.0, 0.0
+        angle = random.uniform(0, 2 * math.pi)
+        mag = random.uniform(0.3, 1.0) * self.wind_strength * WIND_MAX
+        return mag * math.cos(angle), mag * math.sin(angle)
 
     def map_info(self):
-        return {"start": list(START), "exit_center": list(EXIT_CENTER), "exit_radius": EXIT_RADIUS, "size": SIZE}
+        return {
+            "start": list(START),
+            "exit_center": list(EXIT_CENTER),
+            "exit_radius": EXIT_RADIUS,
+            "size": SIZE,
+            "wind": [self.wind_x, self.wind_y],
+        }
 
-    # ---------- physics (discrete velocity per spec: vx,vy ∈ {-1,0,1}) ----------
-
-    def physics_step(self, state, action_idx):
+    def physics_step(self, state, action_idx, wind_x=0.0, wind_y=0.0):
         x, y, _vx, _vy = state
         tx, ty = ACTIONS9[action_idx]
-        # Velocity is discrete {-1, 0, 1}; each step = DT seconds.
-        # Displacement = v * SPEED * DT = v * 50 * 0.02 = v units/step.
         vx, vy = float(tx), float(ty)
-        nx = x + vx * SPEED * DT
-        ny = y + vy * SPEED * DT
+        # Wind drifts position; agent must compensate by choosing opposite direction.
+        nx = x + (vx + wind_x) * SPEED * DT
+        ny = y + (vy + wind_y) * SPEED * DT
 
         hit_wall = nx < 0 or nx > SIZE or ny < 0 or ny > SIZE
         nx = min(SIZE, max(0.0, nx))
@@ -105,8 +123,6 @@ class Room4DQN(BaseRoom):
             return (nx, ny, 0, 0), self.wall_penalty, False
         return (nx, ny, vx, vy), self.step_penalty, False
 
-    # ---------- DQN ----------
-
     def epsilon_greedy(self, state_norm, epsilon):
         if np.random.random() < epsilon:
             return np.random.randint(9)
@@ -116,16 +132,16 @@ class Room4DQN(BaseRoom):
 
     def train_step(self):
         states, actions, rewards, next_states, dones = self.buffer.sample(self.batch_size)
-        states_t = torch.from_numpy(states)
-        actions_t = torch.from_numpy(actions)
-        rewards_t = torch.from_numpy(rewards)
-        next_states_t = torch.from_numpy(next_states)
-        dones_t = torch.from_numpy(dones)
+        st = torch.from_numpy(states)
+        at = torch.from_numpy(actions)
+        rt = torch.from_numpy(rewards)
+        nst = torch.from_numpy(next_states)
+        dt = torch.from_numpy(dones)
 
-        q_values = self.online(states_t).gather(1, actions_t.unsqueeze(1)).squeeze(1)
+        q_values = self.online(st).gather(1, at.unsqueeze(1)).squeeze(1)
         with torch.no_grad():
-            next_q = self.target(next_states_t).max(dim=1)[0]
-            target_q = rewards_t + self.gamma * next_q * (1 - dones_t)
+            next_q = self.target(nst).max(dim=1)[0]
+            target_q = rt + self.gamma * next_q * (1 - dt)
 
         loss = nn.functional.mse_loss(q_values, target_q)
         self.optimizer.zero_grad()
@@ -135,14 +151,6 @@ class Room4DQN(BaseRoom):
 
     @staticmethod
     async def _safe_send(websocket, payload):
-        """Send, returning False instead of raising if the client is gone.
-
-        A disconnect during a long training run only flips stop_requested,
-        which this loop only notices at its next check - in between, a send
-        on the now-dead socket would otherwise raise (WebSocketDisconnect on
-        receive, but a plain RuntimeError from Starlette on send after
-        close) and crash this background task with no one to catch it.
-        """
         try:
             await websocket.send_json(payload)
             return True
@@ -151,8 +159,8 @@ class Room4DQN(BaseRoom):
 
     async def train(self, params: dict, websocket):
         self.configure(params)
-        self.online = DQNNetwork()
-        self.target = DQNNetwork()
+        self.online = DQNNetwork(state_dim=STATE_DIM)
+        self.target = DQNNetwork(state_dim=STATE_DIM)
         self.target.load_state_dict(self.online.state_dict())
         self.optimizer = torch.optim.Adam(self.online.parameters(), lr=self.lr)
         self.buffer = ReplayBuffer(self.buffer_size)
@@ -173,16 +181,21 @@ class Room4DQN(BaseRoom):
             if self.stop_requested:
                 break
 
+            # New random wind for every episode — agent must learn to compensate
+            wind_x, wind_y = self._new_wind()
+            self.wind_x, self.wind_y = wind_x, wind_y
+
             state = (START[0], START[1], 0.0, 0.0)
-            trajectory = [{"pos": [state[0], state[1]], "reward": 0.0}]
+            trajectory = [{"pos": [state[0], state[1]], "reward": 0.0,
+                           "wind": [wind_x, wind_y]}]
             total_reward = 0.0
             step = 0
 
             for step in range(self.max_steps):
-                state_norm = normalize_state(*state)
+                state_norm = normalize_state(*state, wind_x, wind_y)
                 action = self.epsilon_greedy(state_norm, epsilon)
-                next_state, reward, done = self.physics_step(state, action)
-                next_norm = normalize_state(*next_state)
+                next_state, reward, done = self.physics_step(state, action, wind_x, wind_y)
+                next_norm = normalize_state(*next_state, wind_x, wind_y)
                 self.buffer.push(state_norm, action, reward, next_norm, done)
 
                 loss_val = None
@@ -193,7 +206,8 @@ class Room4DQN(BaseRoom):
                         self.target.load_state_dict(self.online.state_dict())
 
                 state = next_state
-                trajectory.append({"pos": [state[0], state[1]], "reward": reward})
+                trajectory.append({"pos": [state[0], state[1]], "reward": reward,
+                                    "wind": [wind_x, wind_y]})
                 total_reward += reward
 
                 if step % 5 == 0:
@@ -203,6 +217,7 @@ class Room4DQN(BaseRoom):
                         "step": step,
                         "agent_pos": [state[0], state[1]],
                         "velocity": [state[2], state[3]],
+                        "wind": [wind_x, wind_y],
                         "reward": reward,
                         "loss": loss_val,
                         "buffer_size": len(self.buffer),
@@ -240,4 +255,3 @@ class Room4DQN(BaseRoom):
             "best_reward": episode_rewards.get(best_episode, 0.0),
             **self.map_info(),
         })
-
