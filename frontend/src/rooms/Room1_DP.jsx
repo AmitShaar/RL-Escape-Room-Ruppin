@@ -34,7 +34,7 @@ const SCHEMA = [
 ]
 
 const DEFAULT_PARAMS = {
-  gamma: 0.95,
+  gamma: 0.99,
   slip_prob: 0.1,
   num_treats: 5,
   treat_reward: 5,
