@@ -9,6 +9,7 @@ import ContinuousWorld3D, { continuousToWorld } from '../components/ContinuousWo
 import DogModel from '../components/DogModel.jsx'
 import BestResultPanel from '../components/BestResultPanel.jsx'
 import TrainingStatusBanner from '../components/TrainingStatusBanner.jsx'
+import ReplayRewardOverlay from '../components/ReplayRewardOverlay.jsx'
 
 const DEFAULT_BUFFER_CAPACITY = 10000
 const SCHEMA = [
@@ -58,6 +59,7 @@ export default function Room4_DQN() {
   const [liveVelocity, setLiveVelocity] = useState([0, 0])
   const [bestReward, setBestReward] = useState(null)
   const [bestEpisode, setBestEpisode] = useState(null)
+  const [replayStepIdx, setReplayStepIdx] = useState(0)
 
   const sendRef = useRef(() => {})
   const lossStepRef = useRef(0)
@@ -139,6 +141,7 @@ export default function Room4_DQN() {
       if (!point) return
       setAgentXY(point.pos)
       if (point.wind) setWind(point.wind)
+      setReplayStepIdx(step)
       if (prev) {
         setVelocity([(point.pos[0] - prev.pos[0]) * 50, (point.pos[1] - prev.pos[1]) * 50])
       } else {
@@ -146,6 +149,12 @@ export default function Room4_DQN() {
       }
     },
     [trajectory]
+  )
+
+  const stepReward = trajectory[replayStepIdx]?.reward ?? 0
+  const cumulativeReward = useMemo(
+    () => trajectory.slice(0, replayStepIdx + 1).reduce((sum, p) => sum + (p.reward || 0), 0),
+    [trajectory, replayStepIdx]
   )
 
   const displayXY = liveAgentXY || agentXY
@@ -200,6 +209,14 @@ export default function Room4_DQN() {
           </Scene3D>
           {windLabel && (
             <div style={styles.windBadge}>{windLabel}</div>
+          )}
+          {status === 'complete' && trajectory.length > 0 && (
+            <ReplayRewardOverlay
+              step={replayStepIdx}
+              totalSteps={trajectory.length - 1}
+              stepReward={stepReward}
+              cumulativeReward={cumulativeReward}
+            />
           )}
         </div>
       </main>
