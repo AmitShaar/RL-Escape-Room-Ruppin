@@ -193,9 +193,10 @@ class Room5Storm(BaseRoom):
 
         for ox, oy, _, _ in obstacles:
             if math.hypot(nx - ox, ny - oy) <= COLLISION_DIST:
-                # Return pre-collision position so replay never shows the agent
-                # visually inside an obstacle.
-                return (x, y, 0.0, 0.0), self.obstacle_penalty + shaping, True
+                # Return pre-collision position. No shaping reward — the agent
+                # didn't actually move, so awarding progress-toward-exit shaping
+                # here would create a phantom positive signal for crashing.
+                return (x, y, 0.0, 0.0), self.obstacle_penalty, True
 
         if dist_after <= EXIT_RADIUS:
             return (nx, ny, vx, vy), self.exit_reward + shaping, True

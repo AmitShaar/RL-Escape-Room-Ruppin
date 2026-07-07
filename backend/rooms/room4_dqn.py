@@ -102,6 +102,7 @@ class Room4DQN(BaseRoom):
             "exit_radius": EXIT_RADIUS,
             "size": SIZE,
             "wind": [self.wind_x, self.wind_y],
+            "buffer_capacity": self.buffer_size,
         }
 
     def physics_step(self, state, action_idx, wind_x=0.0, wind_y=0.0):

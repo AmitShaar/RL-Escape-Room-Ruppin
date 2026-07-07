@@ -13,7 +13,6 @@ export default function ContinuousWorld3D({
   agentPos = [1, 1],
   exitCenter = [9, 9],
   obstacles = [],
-  wind = [0, 0],
 }) {
   const [ex, ey, ez] = continuousToWorld(exitCenter[0], exitCenter[1], 0.5)
 

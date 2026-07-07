@@ -92,7 +92,7 @@ export default function Room4_DQN() {
       setEpisodeHistory([])
       setLossHistory([])
       lossStepRef.current = 0
-      setBufferFill({ size: 0, capacity: DEFAULT_BUFFER_CAPACITY })
+      setBufferFill({ size: 0, capacity: msg.buffer_capacity || DEFAULT_BUFFER_CAPACITY })
       setTrajectory([])
       setAgentXY(msg.start || [1, 1])
       setVelocity([0, 0])
@@ -195,7 +195,6 @@ export default function Room4_DQN() {
               velocity={displayVelocity}
               exitCenter={special.exit_center}
               exitRadius={special.exit_radius}
-              wind={wind}
             />
             <DogModel position={dogPos} />
           </Scene3D>
